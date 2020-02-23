@@ -10,8 +10,10 @@ using namespace std;
 using namespace frc;
 class Robot : public frc::TimedRobot {
  public: 
+  
   // ================== defining public variables ==================
   // left neo motors
+  AHRS *ahrs;
   rev::CANSparkMax frontLeft{1, rev::CANSparkMax::MotorType::kBrushless};
   rev::CANSparkMax backLeft{2, rev::CANSparkMax::MotorType::kBrushless};
 
@@ -54,6 +56,16 @@ class Robot : public frc::TimedRobot {
     climbLeft(10),
     climbRight(11)
   {
+    try {
+            /* Communicate w/navX-MXP via the MXP SPI Bus.                                       */
+            /* Alternatively:  I2C::Port::kMXP, SerialPort::Port::kMXP or SerialPort::Port::kUSB */
+            /* See http://navx-mxp.kauailabs.com/guidance/selecting-an-interface/ for details.   */
+            ahrs = new AHRS(SPI::Port::kMXP);
+        } catch (std::exception ex ) {
+            std::string err_string = "Error instantiating navX-MXP:  ";
+            err_string += ex.what();
+        }
+    ahrs->ZeroYaw();
     intake.SetNeutralMode(NeutralMode::Brake);
     intake.Set(ControlMode::PercentOutput, 0);
   }
@@ -115,6 +127,11 @@ class Robot : public frc::TimedRobot {
     // m_pidFL.SetReference(1500, rev::ControlType::kVelocity);
     // cout << FrontLeft.GetEncoder().GetVelocity() << endl;   
     // intake.Set(ControlMode::PercentOutput, 0.5);
+    SmartDashboard::PutNumber(  "IMU_Yaw",              ahrs->GetYaw());
+    SmartDashboard::PutNumber(  "IMU_Pitch",            ahrs->GetPitch());
+    SmartDashboard::PutNumber(  "IMU_Roll",             ahrs->GetRoll());
+    
+    
   }
 
   void moveRobot(float j_x, float j_y, float mod){
