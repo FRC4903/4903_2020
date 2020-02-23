@@ -1,13 +1,13 @@
 // Team 4903
-// Code by Noor Nasri, commented for future years
 #include <frc/Joystick.h> 
 #include <frc/TimedRobot.h> 
 #include <iostream> 
 #include "rev/CANSparkMax.h"
 #include "ctre/Phoenix.h"
 #include <frc/SmartDashboard/SmartDashboard.h>
+#include "AHRS.h"
 using namespace std;
-
+using namespace frc;
 class Robot : public frc::TimedRobot {
  public: 
   // ================== defining public variables ==================
