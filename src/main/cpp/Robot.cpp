@@ -1,4 +1,5 @@
 // Team 4903
+// Code by Noor Nasri, and Nithin Muthukumar commented for future years
 #include <frc/Joystick.h> 
 #include <frc/TimedRobot.h> 
 #include <iostream> 
@@ -6,8 +7,11 @@
 #include "ctre/Phoenix.h"
 #include <frc/SmartDashboard/SmartDashboard.h>
 #include "AHRS.h"
+#include <chrono>
+
 using namespace std;
 using namespace frc;
+
 class Robot : public frc::TimedRobot {
  public: 
   // ================== defining public variables ==================
@@ -18,9 +22,9 @@ class Robot : public frc::TimedRobot {
   // right neo motors
   rev::CANSparkMax frontRight{3, rev::CANSparkMax::MotorType::kBrushless};
   rev::CANSparkMax backRight{4, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax shootLeft{8, rev::CANSparkMax::MotorType::kBrushless};
+  rev::CANSparkMax shootLeft{12, rev::CANSparkMax::MotorType::kBrushless};
   rev::CANSparkMax shootRight{9, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax sliding{12, rev::CANSparkMax::MotorType::kBrushless};
+  rev::CANSparkMax sliding{8, rev::CANSparkMax::MotorType::kBrushless};
 
   // talons
   TalonSRX intake;
@@ -44,7 +48,7 @@ class Robot : public frc::TimedRobot {
   string startingColour = "Green";
   string wantedColour = "Blue";
   int wantedSpins = 3;
-  int rotationLength = 12.5*(wantedSpins*8 + abs(colourPositions[startingColour] - colourPositions[wantedColour])); // in inches
+  double rotationLength = 0;
 
   // Robot class intializing 
   Robot(): 
@@ -93,8 +97,13 @@ class Robot : public frc::TimedRobot {
 
     float wantedClimbR = (m_stick.GetRawAxis(3) - m_stick.GetRawButton(6)) * 0.3;
     climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
+
+    // setting tilt
+    float wantedtilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * 0.1;
+    tilt.Set(ControlMode::PercentOutput, wantedtilt);
   }
 
+  double lastTime = 0;
   void AutonomousInit() override{
     InitializePID(m_pidFL);
     InitializePID(m_pidBL);
@@ -103,13 +112,20 @@ class Robot : public frc::TimedRobot {
     InitializePID(m_pidSL);
     InitializePID(m_pidSR);
     InitializePID(m_pidSlid);
+    rotationLength = 12.5*(wantedSpins*8 + abs(colourPositions[startingColour] - colourPositions[wantedColour])); // in inches
+    //lastTime = time;
   }
 
   void AutonomousPeriodic() override{
-    //convey.Set(ControlMode::PercentOutput, 0.5f);
-    //shootLeft.Set(0.5f);
-    //shootRight.Set(0.5f);
-    
+    if (rotationLength > 0){
+      double pi = 3.141592653589793238462643383279502884197169399375105820974944592307;
+      rotationLength -= 2*pi*0.05*sliding.GetEncoder().GetVelocity()/60;
+      sliding.Set((rotationLength > 0) ? 0.5f : 0);
+    }
+
+    // convey.Set(ControlMode::PercentOutput, 0.5f);
+    // shootLeft.Set(0.5f);
+    // shootRight.Set(0.5f);
     // testing functions right now
     // PIDCoeffecents(m_pidFL);
     // m_pidFL.SetReference(1500, rev::ControlType::kVelocity);
