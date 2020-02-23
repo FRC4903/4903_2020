@@ -40,6 +40,11 @@ class Robot : public frc::TimedRobot {
 
   // constants
   double kP = 6e-5, kI = 1e-6, kD = 0, kIz = 0, kFF = 0.000015, kMaxOutput = 1.0, kMinOutput = -1.0; 
+  map<string, int> colourPositions = {{"Green", 1}, {"Red", 2}, {"Yellow", 3}, {"Blue", 4}};
+  string startingColour = "Green";
+  string wantedColour = "Blue";
+  int wantedSpins = 3;
+  int rotationLength = 12.5*(wantedSpins*8 + abs(colourPositions[startingColour] - colourPositions[wantedColour])); // in inches
 
   // Robot class intializing 
   Robot(): 
@@ -59,11 +64,10 @@ class Robot : public frc::TimedRobot {
     InitializePID(m_pidBL);
     InitializePID(m_pidFR);
     InitializePID(m_pidBR);
+    InitializePID(m_pidSL);
+    InitializePID(m_pidSR);
+    InitializePID(m_pidSlid);
 
-    frontLeft.SetIdleMode(rev::CANSparkMax::IdleMode::kCoast);
-    backLeft.SetIdleMode(rev::CANSparkMax::IdleMode::kCoast);
-    frontRight.SetIdleMode(rev::CANSparkMax::IdleMode::kCoast);
-    backRight.SetIdleMode(rev::CANSparkMax::IdleMode::kCoast);
   }
 
   float accelLerp = 20;
@@ -91,10 +95,20 @@ class Robot : public frc::TimedRobot {
     climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
   }
 
+  void AutonomousInit() override{
+    InitializePID(m_pidFL);
+    InitializePID(m_pidBL);
+    InitializePID(m_pidFR);
+    InitializePID(m_pidBR);
+    InitializePID(m_pidSL);
+    InitializePID(m_pidSR);
+    InitializePID(m_pidSlid);
+  }
+
   void AutonomousPeriodic() override{
-    convey.Set(ControlMode::PercentOutput, 0.5f);
-    shootLeft.Set(0.5f);
-    shootRight.Set(0.5f);
+    //convey.Set(ControlMode::PercentOutput, 0.5f);
+    //shootLeft.Set(0.5f);
+    //shootRight.Set(0.5f);
     
     // testing functions right now
     // PIDCoeffecents(m_pidFL);
