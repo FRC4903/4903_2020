@@ -173,6 +173,22 @@ class Robot : public frc::TimedRobot {
     backRight.Set(speedR);  
   }
 
+  void autoShoot(){
+
+  }
+
+  void autoPickup(){
+
+  }
+
+  void autoBalance(){
+
+  }
+
+  void colourSpin(){
+
+  }
+  
   // checks for any changes in voltage stuff, just run this function and don't question it
   void PIDCoefficients(rev::CANPIDController& m_pidController){
     // read PID coefficients from SmartDashboard
