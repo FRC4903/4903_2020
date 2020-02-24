@@ -49,11 +49,6 @@ class Robot : public frc::TimedRobot {
 
   // constants
   double kP = 6e-5, kI = 1e-6, kD = 0, kIz = 0, kFF = 0.000015, kMaxOutput = 1.0, kMinOutput = -1.0; 
-  map<string, int> colourPositions = {{"Green", 1}, {"Red", 2}, {"Yellow", 3}, {"Blue", 4}};
-  string startingColour = "Green";
-  string wantedColour = "Blue";
-  int wantedSpins = 3;
-  double rotationLength = 0;
 
   // Robot class intializing 
   Robot(): 
@@ -76,37 +71,20 @@ class Robot : public frc::TimedRobot {
     intake.SetNeutralMode(NeutralMode::Brake);
     intake.Set(ControlMode::PercentOutput, 0);
   }
-
-  // ================== During Teleop period ==================
+  
+  // ================== Initialization periods ==================
   void TeleopInit() override{
-    InitializePID(m_pidFL);
-    InitializePID(m_pidBL);
-    InitializePID(m_pidFR);
-    InitializePID(m_pidBR);
-    InitializePID(m_pidSL);
-    InitializePID(m_pidSR);
-    InitializePID(m_pidSlid);
-
-    frontLeft.Set(0);
-    frontRight.Set(0);
-    backLeft.Set(0);
-    backRight.Set(0);
-
-    shootLeft.Set(0);
-    shootRight.Set(0);
-    sliding.Set(0);
-
-    intake.Set(ControlMode::PercentOutput, 0);
-    convey.Set(ControlMode::PercentOutput, 0);
-    tilt.Set(ControlMode::PercentOutput, 0);
-    climbLeft.Set(ControlMode::PercentOutput, 0);
-    climbRight.Set(ControlMode::PercentOutput, 0);
+    initialize();
+  }
+  
+  void AutonomousInit() override{
+    initialize();
   }
 
-  float accelLerp = 20;
-  float oldSL = 0;
-  float oldSR = 0;
+  // ================== During Teleop period ==================
   void TeleopPeriodic() override {  
+    updatePosition(); // update our current position
+
     // arcade drive
     float j_x = m_stick.GetRawAxis(1);
     float j_y = m_stick.GetRawAxis(4);
@@ -132,8 +110,15 @@ class Robot : public frc::TimedRobot {
     tilt.Set(ControlMode::PercentOutput, wantedtilt);
   }
 
-  double lastTime = 0;
-  void AutonomousInit() override{
+
+  // ================== Autonomous Period ==================
+  void AutonomousPeriodic() override{
+    updatePosition();
+  }
+
+
+  // ================== Functions ==================
+  void initialize(){ // reset all the variables
     InitializePID(m_pidFL);
     InitializePID(m_pidBL);
     InitializePID(m_pidFR);
@@ -141,17 +126,30 @@ class Robot : public frc::TimedRobot {
     InitializePID(m_pidSL);
     InitializePID(m_pidSR);
     InitializePID(m_pidSlid);
-    rotationLength = 12.5*(wantedSpins*8 + abs(colourPositions[startingColour] - colourPositions[wantedColour])); // in inches
-    //lastTime = time;
-    c = 1;
-  }
 
-  double c = 1;
-  void AutonomousPeriodic() override{
+    frontLeft.Set(0);
+    frontRight.Set(0);
+    backLeft.Set(0);
+    backRight.Set(0);
+    shootLeft.Set(0);
+    shootRight.Set(0);
+    sliding.Set(0);
+
+    intake.Set(ControlMode::PercentOutput, 0);
+    convey.Set(ControlMode::PercentOutput, 0);
+    tilt.Set(ControlMode::PercentOutput, 0);
+    climbLeft.Set(ControlMode::PercentOutput, 0);
+    climbRight.Set(ControlMode::PercentOutput, 0);
+
+    originalAngle = ahrs -> GetAngle();
+  } 
+
+  // movement variables
+  float accelLerp = 20;
+  float oldSL = 0;
+  float oldSR = 0;
     
-  }
-
-  void moveRobot(float j_x, float j_y, float mod){
+  void moveRobot(float j_x, float j_y, float mod){ // movement functions
     // not counting joystick if its close enough to 0
     if(j_x >= -0.05 && j_x <= 0.05) { j_x = 0; }
     if(j_y >= -0.05 && j_y <= 0.05) { j_y = 0; }
@@ -173,6 +171,15 @@ class Robot : public frc::TimedRobot {
     backRight.Set(speedR);  
   }
 
+  // position offset variables
+  double deltaX = 0;
+  double deltaY = 0;
+  double originalAngle = -1;
+
+  void updatePosition(){ // update our position and let pygame know where we are
+
+  }
+
   void autoShoot(){
 
   }
@@ -188,7 +195,7 @@ class Robot : public frc::TimedRobot {
   void colourSpin(){
 
   }
-  
+
   // checks for any changes in voltage stuff, just run this function and don't question it
   void PIDCoefficients(rev::CANPIDController& m_pidController){
     // read PID coefficients from SmartDashboard
@@ -254,11 +261,19 @@ int main() { return frc::StartRobot<Robot>(); }
   cout<< entryRec.GetDouble(0) << endl;
   
   Colour spinning:
+  rotationLength = 12.5*(wantedSpins*8 + abs(colourPositions[startingColour] - colourPositions[wantedColour])); // in inches
+
   if (rotationLength > 0){
     double pi = 3.141592653589793238462643383279502884197169399375105820974944592307;
     rotationLength -= 2*pi*0.02*sliding.GetEncoder().GetVelocity()/60;
     sliding.Set((rotationLength > 0) ? 0.5f : 0);
   }
+
+  map<string, int> colourPositions = {{"Green", 1}, {"Red", 2}, {"Yellow", 3}, {"Blue", 4}};
+  string startingColour = "Green";
+  string wantedColour = "Blue";
+  int wantedSpins = 3;
+  double rotationLength = 0;
 
   
   Neo Encoders:
