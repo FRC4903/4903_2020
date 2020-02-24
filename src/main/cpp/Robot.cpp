@@ -46,14 +46,17 @@ class Robot : public frc::TimedRobot {
   rev::CANPIDController m_pidSL= shootLeft.GetPIDController();
   rev::CANPIDController m_pidSR= shootRight.GetPIDController();
   rev::CANPIDController m_pidSlid = sliding.GetPIDController();
+  
+  //network tables
+  shared_ptr<NetworkTable> pythonTable = nt::NetworkTableInstance::GetDefault().GetTable("realTimeDB");
+  shared_ptr<NetworkTable> frontLL = nt::NetworkTableInstance::GetDefault().GetTable("limelight-front");
+  shared_ptr<NetworkTable> backLL = nt::NetworkTableInstance::GetDefault().GetTable("limelight-back");
 
   // constants
   double kP = 6e-5, kI = 1e-6, kD = 0, kIz = 0, kFF = 0.000015, kMaxOutput = 1.0, kMinOutput = -1.0; 
   float accelLerp = 20;
   float oldSL = 0;
   float oldSR = 0;
-  double deltaX = 0;
-  double deltaY = 0;
   double originalAngle = -1;
 
   // Robot class intializing 
@@ -147,6 +150,7 @@ class Robot : public frc::TimedRobot {
     climbLeft.Set(ControlMode::PercentOutput, 0);
     climbRight.Set(ControlMode::PercentOutput, 0);
 
+    ahrs -> ResetDisplacement();
     originalAngle = ahrs -> GetAngle();
   } 
 
@@ -173,12 +177,12 @@ class Robot : public frc::TimedRobot {
   }
 
   void updatePosition(){ // update our position and let pygame know where we are
-    double wheelC;
-    double mewFactor;
-    double movedL = (frontLeft.GetEncoder().GetVelocity() + backLeft.GetEncoder().GetVelocity()) * 0.02 * wheelC * mewFactor;
-    double movedR = (frontRight.GetEncoder().GetVelocity() + backRight.GetEncoder().GetVelocity()) * 0.02 * wheelC * mewFactor;
-
-    //ahrs -> get
+    nt::NetworkTableEntry offsetX = pythonTable->GetEntry("DeltaX");
+    nt::NetworkTableEntry offsetY = pythonTable->GetEntry("DeltaY");
+    nt::NetworkTableEntry offsetAngle = pythonTable->GetEntry("Angle");
+    offsetX.SetDouble(ahrs -> GetDisplacementX());
+    offsetY.SetDouble(ahrs -> GetDisplacementZ());
+    offsetAngle.SetDouble(ahrs -> GetAngle() - originalAngle);    
   }
 
   void autoShoot(){
