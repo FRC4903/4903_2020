@@ -1,5 +1,5 @@
 // Team 4903
-// Code by Noor Nasri, and Nithin Muthukumar commented for future years
+// Code by Noor Nasri and Nithin Muthukumar, commented for future years
 #include <frc/Joystick.h> 
 #include <frc/TimedRobot.h> 
 #include <iostream> 
@@ -11,7 +11,6 @@
 #include <networktables/NetworkTable.h>
 #include <networktables/NetworkTableInstance.h>
 
-
 using namespace std;
 using namespace frc;
 
@@ -19,17 +18,14 @@ class Robot : public frc::TimedRobot {
  public: 
   
   // ================== defining public variables ==================
-  // left neo motors
-  AHRS *ahrs;
+  // neo motors
   rev::CANSparkMax frontLeft{1, rev::CANSparkMax::MotorType::kBrushless};
   rev::CANSparkMax backLeft{2, rev::CANSparkMax::MotorType::kBrushless};
-
-  // right neo motors
   rev::CANSparkMax frontRight{3, rev::CANSparkMax::MotorType::kBrushless};
   rev::CANSparkMax backRight{4, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax shootLeft{12, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax shootRight{9, rev::CANSparkMax::MotorType::kBrushless};
   rev::CANSparkMax sliding{8, rev::CANSparkMax::MotorType::kBrushless};
+  rev::CANSparkMax shootRight{9, rev::CANSparkMax::MotorType::kBrushless};
+  rev::CANSparkMax shootLeft{12, rev::CANSparkMax::MotorType::kBrushless};
 
   // talons
   TalonSRX intake;
@@ -51,6 +47,9 @@ class Robot : public frc::TimedRobot {
   shared_ptr<NetworkTable> pythonTable = nt::NetworkTableInstance::GetDefault().GetTable("realTimeDB");
   shared_ptr<NetworkTable> frontLL = nt::NetworkTableInstance::GetDefault().GetTable("limelight-front");
   shared_ptr<NetworkTable> backLL = nt::NetworkTableInstance::GetDefault().GetTable("limelight-back");
+
+  // gyro
+  AHRS *ahrs;
 
   // constants
   double kP = 6e-5, kI = 1e-6, kD = 0, kIz = 0, kFF = 0.000015, kMaxOutput = 1.0, kMinOutput = -1.0; 
