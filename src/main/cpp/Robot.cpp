@@ -8,6 +8,9 @@
 #include <frc/SmartDashboard/SmartDashboard.h>
 #include "AHRS.h"
 #include <chrono>
+#include <networktables/NetworkTable.h>
+#include <networktables/NetworkTableInstance.h>
+
 
 using namespace std;
 using namespace frc;
@@ -84,6 +87,20 @@ class Robot : public frc::TimedRobot {
     InitializePID(m_pidSR);
     InitializePID(m_pidSlid);
 
+    frontLeft.Set(0);
+    frontRight.Set(0);
+    backLeft.Set(0);
+    backRight.Set(0);
+
+    shootLeft.Set(0);
+    shootRight.Set(0);
+    sliding.Set(0);
+
+    intake.Set(ControlMode::PercentOutput, 0);
+    convey.Set(ControlMode::PercentOutput, 0);
+    tilt.Set(ControlMode::PercentOutput, 0);
+    climbLeft.Set(ControlMode::PercentOutput, 0);
+    climbRight.Set(ControlMode::PercentOutput, 0);
   }
 
   float accelLerp = 20;
@@ -111,7 +128,7 @@ class Robot : public frc::TimedRobot {
     climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
 
     // setting tilt
-    float wantedtilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * 0.1;
+    float wantedtilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * -0.35;
     tilt.Set(ControlMode::PercentOutput, wantedtilt);
   }
 
@@ -126,27 +143,11 @@ class Robot : public frc::TimedRobot {
     InitializePID(m_pidSlid);
     rotationLength = 12.5*(wantedSpins*8 + abs(colourPositions[startingColour] - colourPositions[wantedColour])); // in inches
     //lastTime = time;
+    c = 1;
   }
 
+  double c = 1;
   void AutonomousPeriodic() override{
-    if (rotationLength > 0){
-      double pi = 3.141592653589793238462643383279502884197169399375105820974944592307;
-      rotationLength -= 2*pi*0.05*sliding.GetEncoder().GetVelocity()/60;
-      sliding.Set((rotationLength > 0) ? 0.5f : 0);
-    }
-
-    // convey.Set(ControlMode::PercentOutput, 0.5f);
-    // shootLeft.Set(0.5f);
-    // shootRight.Set(0.5f);
-    // testing functions right now
-    // PIDCoeffecents(m_pidFL);
-    // m_pidFL.SetReference(1500, rev::ControlType::kVelocity);
-    // cout << FrontLeft.GetEncoder().GetVelocity() << endl;   
-    // intake.Set(ControlMode::PercentOutput, 0.5);
-    SmartDashboard::PutNumber(  "IMU_Yaw",              ahrs->GetYaw());
-    SmartDashboard::PutNumber(  "IMU_Pitch",            ahrs->GetPitch());
-    SmartDashboard::PutNumber(  "IMU_Roll",             ahrs->GetRoll());
-    
     
   }
 
@@ -225,3 +226,34 @@ class Robot : public frc::TimedRobot {
 #ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
 #endif
+
+/* Autonomous things weève tested
+  Network tables:
+  shared_ptr<NetworkTable> table = nt::NetworkTableInstance::GetDefault().GetTable("dataTest");
+  nt::NetworkTableEntry entryTest = table->GetEntry("X");
+  nt::NetworkTableEntry entryRec = table->GetEntry("Y");
+  entryTest.SetDouble(c);
+  c*=1.01;
+
+  cout<< entryRec.GetDouble(0) << endl;
+  
+  Colour spinning:
+  if (rotationLength > 0){
+    double pi = 3.141592653589793238462643383279502884197169399375105820974944592307;
+    rotationLength -= 2*pi*0.02*sliding.GetEncoder().GetVelocity()/60;
+    sliding.Set((rotationLength > 0) ? 0.5f : 0);
+  }
+
+  
+  Neo Encoders:
+  PIDCoeffecents(m_pidFL);
+  m_pidFL.SetReference(1500, rev::ControlType::kVelocity);
+  cout << FrontLeft.GetEncoder().GetVelocity() << endl;   
+  intake.Set(ControlMode::PercentOutput, 0.5);
+
+  Gyro:
+  cout<<"IMU_Pitch "<<ahrs->GetPitch()<<" ";
+  cout<<"IMU_Yaw "<<ahrs->GetYaw()<<" ";
+  cout<<"IMU_Roll "<<ahrs->GetRoll()<<endl;
+
+*/
