@@ -115,6 +115,14 @@ class Robot : public frc::TimedRobot {
       moveRobot(j_x, j_y, mod);
     }
 
+    if (!pathwayExists){
+      // arcade drive
+      float j_x = m_stick.GetRawAxis(4);
+      float j_y = m_stick.GetRawAxis(1);
+      float mod = 0.75f; 
+      moveRobot(j_x, j_y, mod);
+    }
+    
     // setting intake speed
     bool wantIntake = m_stick.GetRawButton(1);
     intake.Set(ControlMode::PercentOutput, wantIntake ? -0.25 : 0);
@@ -123,24 +131,22 @@ class Robot : public frc::TimedRobot {
     convey.Set(ControlMode::PercentOutput, wantConvey ? 0.5 : 0);
 
     // setting climb
-    float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
-    climbLeft.Set(ControlMode::PercentOutput, wantedClimbL);
+    //float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
+    //climbLeft.Set(ControlMode::PercentOutput, wantedClimbL);
 
-    float wantedClimbR = (m_stick.GetRawAxis(3) - m_stick.GetRawButton(6)) * 0.3;
-    climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
+    //float wantedClimbR = (m_stick.GetRawAxis(3) - m_stick.GetRawButton(6)) * 0.3;
+    //climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
 
     // setting tilt
     float wantedtilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * -0.35;
     tilt.Set(ControlMode::PercentOutput, wantedtilt);
 
     //shooters for now
-    if (m_stick.GetPOV() == 90){
-      shootRight.Set(0.2f);
-      shootLeft.Set(-0.2f);
-    }else{
-      shootRight.Set(0);
-      shootLeft.Set(0);
-    }
+    float wantedShoot = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
+    
+    shootRight.Set(wantedShoot);
+    shootLeft.Set(wantedShoot*-1);
+    cout<<"val"<<wantedShoot<<endl;
   }
 
 
@@ -334,34 +340,28 @@ int main() { return frc::StartRobot<Robot>(); }
   nt::NetworkTableEntry entryRec = table->GetEntry("Y");
   entryTest.SetDouble(c);
   c*=1.01;
-
   cout<< entryRec.GetDouble(0) << endl;
   
   Colour spinning:
   rotationLength = 12.5*(wantedSpins*8 + abs(colourPositions[startingColour] - colourPositions[wantedColour])); // in inches
-
   if (rotationLength > 0){
     double pi = 3.141592653589793238462643383279502884197169399375105820974944592307;
     rotationLength -= 2*pi*0.02*sliding.GetEncoder().GetVelocity()/60;
     sliding.Set((rotationLength > 0) ? 0.5f : 0);
   }
-
   map<string, int> colourPositions = {{"Green", 1}, {"Red", 2}, {"Yellow", 3}, {"Blue", 4}};
   string startingColour = "Green";
   string wantedColour = "Blue";
   int wantedSpins = 3;
   double rotationLength = 0;
-
   
   Neo Encoders:
   PIDCoeffecents(m_pidFL);
   m_pidFL.SetReference(1500, rev::ControlType::kVelocity);
   cout << FrontLeft.GetEncoder().GetVelocity() << endl;   
   intake.Set(ControlMode::PercentOutput, 0.5);
-
   Gyro:
   cout<<"IMU_Pitch "<<ahrs->GetPitch()<<" ";
   cout<<"IMU_Yaw "<<ahrs->GetYaw()<<" ";
   cout<<"IMU_Roll "<<ahrs->GetRoll()<<endl;
-
 */
