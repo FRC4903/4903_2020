@@ -10,13 +10,16 @@
 #include <chrono>
 #include <networktables/NetworkTable.h>
 #include <networktables/NetworkTableInstance.h>
+#include <frc/geometry/Rotation2d.h>
+#include <frc/trajectory/TrajectoryUtil.h>
+#include <frc/geometry/Pose2d.h>
+#include <frc/trajectory/TrajectoryGenerator.h>
 
 using namespace std;
 using namespace frc;
 
 class Robot : public frc::TimedRobot {
- public: 
-  
+ public:
   // ================== defining public variables ==================
   // neo motors
   rev::CANSparkMax frontLeft{1, rev::CANSparkMax::MotorType::kBrushless};
@@ -51,12 +54,16 @@ class Robot : public frc::TimedRobot {
   // gyro
   AHRS *ahrs;
 
-  // constants
+  // constants and variables
   double kP = 6e-5, kI = 1e-6, kD = 0, kIz = 0, kFF = 0.000015, kMaxOutput = 1.0, kMinOutput = -1.0; 
+  double startX, startY;
   float accelLerp = 20;
   float oldSL = 0;
   float oldSR = 0;
   double originalAngle = -1;
+
+  int wantedSpot[2] = {};
+  bool pathwayExists = false;
 
   // Robot class intializing 
   Robot(): 
@@ -93,15 +100,23 @@ class Robot : public frc::TimedRobot {
   void TeleopPeriodic() override {  
     updatePosition(); // update our current position
 
-    // arcade drive
-    float j_x = m_stick.GetRawAxis(1);
-    float j_y = m_stick.GetRawAxis(4);
-    float mod = 0.75f; 
-    moveRobot(j_x, j_y, mod);
+    if (pathwayExists){
+      followPath();
+    }else{
+      makePath();
+    }
 
+    if (!pathwayExists){
+      // arcade drive
+      float j_x = m_stick.GetRawAxis(4);
+      float j_y = m_stick.GetRawAxis(1);
+      float mod = 0.75f; 
+      moveRobot(j_x, j_y, mod);
+    }
+    
     // setting intake speed
     bool wantIntake = m_stick.GetRawButton(1);
-    intake.Set(ControlMode::PercentOutput, wantIntake ? -0.75 : 0);
+    intake.Set(ControlMode::PercentOutput, wantIntake ? -0.25 : 0);
 
     bool wantConvey = m_stick.GetRawButton(2);
     convey.Set(ControlMode::PercentOutput, wantConvey ? 0.5 : 0);
@@ -116,6 +131,15 @@ class Robot : public frc::TimedRobot {
     // setting tilt
     float wantedtilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * -0.35;
     tilt.Set(ControlMode::PercentOutput, wantedtilt);
+
+    //shooters for now
+    if (m_stick.GetPOV() == 90){
+      shootRight.Set(0.2f);
+      shootLeft.Set(-0.2f);
+    }else{
+      shootRight.Set(0);
+      shootLeft.Set(0);
+    }
   }
 
 
@@ -151,6 +175,9 @@ class Robot : public frc::TimedRobot {
 
     ahrs -> ResetDisplacement();
     originalAngle = ahrs -> GetAngle();
+
+    startX = pythonTable->GetEntry("StartingX").GetDouble(0);
+    startY = pythonTable->GetEntry("StartingY").GetDouble(0);
   } 
 
   void moveRobot(float j_x, float j_y, float mod){ // movement functions
@@ -159,29 +186,74 @@ class Robot : public frc::TimedRobot {
     if(j_y >= -0.05 && j_y <= 0.05) { j_y = 0; }
 
     // calculating the speed for left/right side in arcade drive
-    double speedL = max(-1.0f, min(1.0f, +j_y - j_x)) * mod;
-    speedL = j_x == 0 ? speedL : oldSL * (1 - 1/accelLerp) + (1/accelLerp) * speedL; 
+    double speedL = max(-1.0f, min(1.0f, +j_x - j_y)) * mod;
+    double speedR = max(-1.0f, min(1.0f, -j_x - j_y)) * mod;
 
-    double speedR = max(-1.0f, min(1.0f, -j_y - j_x)) * mod;
-    speedR = j_x == 0 ? speedR : oldSR * (1 - 1/accelLerp) + (1/accelLerp) * speedR;
-
-    oldSL = speedL;
-    oldSR = speedR;
+    // if we are not turning, then use custom coast. Else, use brake mode.
+    speedL = (oldSL != oldSR && j_y == 0 )? speedL : oldSL * (1 - 1/accelLerp) + (1/accelLerp) * speedL; 
+    speedR = (oldSL != oldSR && j_y == 0 ) ? speedR : oldSR * (1 - 1/accelLerp) + (1/accelLerp) * speedR;
 
     // setting neo motors to the set speed
     frontLeft.Set(speedL*-1);   
     backLeft.Set(speedL*-1);   
     frontRight.Set(speedR);   
     backRight.Set(speedR);  
+
+    // set the old variables for the next iteration
+    oldSL = speedL;
+    oldSR = speedR;
   }
 
   void updatePosition(){ // update our position and let pygame know where we are
-    nt::NetworkTableEntry offsetX = pythonTable->GetEntry("DeltaX");
-    nt::NetworkTableEntry offsetY = pythonTable->GetEntry("DeltaY");
-    nt::NetworkTableEntry offsetAngle = pythonTable->GetEntry("Angle");
+    nt::NetworkTableEntry offsetX = pythonTable->GetEntry("deltaX");
+    nt::NetworkTableEntry offsetY = pythonTable->GetEntry("deltaY");
+    nt::NetworkTableEntry offsetAngle = pythonTable->GetEntry("angle");
     offsetX.SetDouble(ahrs -> GetDisplacementX());
     offsetY.SetDouble(ahrs -> GetDisplacementZ());
     offsetAngle.SetDouble(ahrs -> GetAngle() - originalAngle);    
+  }
+
+  void makePath(){ // check if we need to make a path
+    nt::NetworkTableEntry wantedX = pythonTable->GetEntry("moveX");
+    nt::NetworkTableEntry wantedY = pythonTable->GetEntry("moveY");
+    if (wantedX.GetDouble(0) != 0 && wantedY.GetDouble(0) != 0){
+      pathwayExists = true;
+      wantedSpot[0] = wantedX.GetDouble(0);
+      wantedX.SetDouble(0);
+      
+      wantedSpot[1] = wantedY.GetDouble(0);
+      wantedY.SetDouble(0);
+    }
+  }
+
+  void followPath(){ // follow path thats already made
+    // check if we made it
+    int currentSpot[2] = {startX + ahrs -> GetDisplacementX(), startY + ahrs -> GetDisplacementZ()};
+    double allowedDistance = 0.25;
+    if (pow(wantedSpot[0] - currentSpot[0], 2) + pow(wantedSpot[1] - currentSpot[1], 2) < pow(allowedDistance, 2)){
+      pathwayExists = false;
+      moveRobot(0, 0, 0.75);
+      return;
+    }
+
+    // continue moving, first get the angle
+    double degreeWanted = atan((wantedSpot[1] - currentSpot[1]) / (wantedSpot[0] - currentSpot[0])) * 180.0/3.141592653589793238463;
+    if (currentSpot[0] < wantedSpot[0]){ // if tan gave us the wrong angle 
+      degreeWanted += 180;
+    }else if (degreeWanted < 0){ // make it positive
+      degreeWanted += 360;
+    }
+    double realAngle = originalAngle + degreeWanted > 360 ? originalAngle + degreeWanted - 360 : originalAngle + degreeWanted;
+
+    // check if gyro is close to angle
+    double currentAngle = ahrs -> GetAngle();
+    if (abs(currentAngle - realAngle) > 5){
+      // adjust angles
+      moveRobot(((currentAngle < realAngle) ? 1 : -1), 1, 0.75);
+    }else{
+      // drive forward
+      moveRobot(0, 1, 0.75);
+    }
   }
 
   void autoShoot(){
