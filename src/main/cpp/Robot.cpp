@@ -100,6 +100,7 @@ class Robot : public frc::TimedRobot {
   void TeleopPeriodic() override {  
     updatePosition(); // update our current position
 
+    // check if we're forced to follow a path
     if (pathwayExists){
       followPath();
     }else{
@@ -113,7 +114,7 @@ class Robot : public frc::TimedRobot {
       float mod = 0.75f; 
       moveRobot(j_x, j_y, mod);
     }
-    
+
     // setting intake speed
     bool wantIntake = m_stick.GetRawButton(1);
     intake.Set(ControlMode::PercentOutput, wantIntake ? -0.25 : 0);
