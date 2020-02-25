@@ -1,4 +1,5 @@
 // Team 4903
+// Code by Noor Nasri and Nithin Muthukumar, commented for future years
 #include <frc/Joystick.h> 
 #include <frc/TimedRobot.h> 
 #include <iostream> 
@@ -6,23 +7,28 @@
 #include "ctre/Phoenix.h"
 #include <frc/SmartDashboard/SmartDashboard.h>
 #include "AHRS.h"
+#include <chrono>
+#include <networktables/NetworkTable.h>
+#include <networktables/NetworkTableInstance.h>
+#include <frc/geometry/Rotation2d.h>
+#include <frc/trajectory/TrajectoryUtil.h>
+#include <frc/geometry/Pose2d.h>
+#include <frc/trajectory/TrajectoryGenerator.h>
+
 using namespace std;
 using namespace frc;
+
 class Robot : public frc::TimedRobot {
- public: 
-  
+ public:
   // ================== defining public variables ==================
-  // left neo motors
-  AHRS *ahrs;
+  // neo motors
   rev::CANSparkMax frontLeft{1, rev::CANSparkMax::MotorType::kBrushless};
   rev::CANSparkMax backLeft{2, rev::CANSparkMax::MotorType::kBrushless};
-
-  // right neo motors
   rev::CANSparkMax frontRight{3, rev::CANSparkMax::MotorType::kBrushless};
   rev::CANSparkMax backRight{4, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax shootLeft{8, rev::CANSparkMax::MotorType::kBrushless};
+  rev::CANSparkMax sliding{8, rev::CANSparkMax::MotorType::kBrushless};
   rev::CANSparkMax shootRight{9, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax sliding{12, rev::CANSparkMax::MotorType::kBrushless};
+  rev::CANSparkMax shootLeft{12, rev::CANSparkMax::MotorType::kBrushless};
 
   // talons
   TalonSRX intake;
@@ -39,14 +45,25 @@ class Robot : public frc::TimedRobot {
   rev::CANPIDController m_pidSL= shootLeft.GetPIDController();
   rev::CANPIDController m_pidSR= shootRight.GetPIDController();
   rev::CANPIDController m_pidSlid = sliding.GetPIDController();
+  
+  //network tables
+  shared_ptr<NetworkTable> pythonTable = nt::NetworkTableInstance::GetDefault().GetTable("realTimeDB");
+  shared_ptr<NetworkTable> frontLL = nt::NetworkTableInstance::GetDefault().GetTable("limelight-front");
+  shared_ptr<NetworkTable> backLL = nt::NetworkTableInstance::GetDefault().GetTable("limelight-back");
 
-  // constants
+  // gyro
+  AHRS *ahrs;
+
+  // constants and variables
   double kP = 6e-5, kI = 1e-6, kD = 0, kIz = 0, kFF = 0.000015, kMaxOutput = 1.0, kMinOutput = -1.0; 
-  map<string, int> colourPositions = {{"Green", 1}, {"Red", 2}, {"Yellow", 3}, {"Blue", 4}};
-  string startingColour = "Green";
-  string wantedColour = "Blue";
-  int wantedSpins = 3;
-  int rotationLength = 12.5*(wantedSpins*8 + abs(colourPositions[startingColour] - colourPositions[wantedColour])); // in inches
+  double startX, startY;
+  float accelLerp = 20;
+  float oldSL = 0;
+  float oldSR = 0;
+  double originalAngle = -1;
+
+  int wantedSpot[2] = {};
+  bool pathwayExists = false;
 
   // Robot class intializing 
   Robot(): 
@@ -69,45 +86,69 @@ class Robot : public frc::TimedRobot {
     intake.SetNeutralMode(NeutralMode::Brake);
     intake.Set(ControlMode::PercentOutput, 0);
   }
-
-  // ================== During Teleop period ==================
+  
+  // ================== Initialization periods ==================
   void TeleopInit() override{
-    InitializePID(m_pidFL);
-    InitializePID(m_pidBL);
-    InitializePID(m_pidFR);
-    InitializePID(m_pidBR);
-    InitializePID(m_pidSL);
-    InitializePID(m_pidSR);
-    InitializePID(m_pidSlid);
-
+    initialize();
+  }
+  
+  void AutonomousInit() override{
+    initialize();
   }
 
-  float accelLerp = 20;
-  float oldSL = 0;
-  float oldSR = 0;
+  // ================== During Teleop period ==================
   void TeleopPeriodic() override {  
-    // arcade drive
-    float j_x = m_stick.GetRawAxis(1);
-    float j_y = m_stick.GetRawAxis(4);
-    float mod = 0.75f; 
-    moveRobot(j_x, j_y, mod);
+    updatePosition(); // update our current position
 
+    if (pathwayExists){
+      followPath();
+    }else{
+      makePath();
+    }
+
+    if (!pathwayExists){
+      // arcade drive
+      float j_x = m_stick.GetRawAxis(4);
+      float j_y = m_stick.GetRawAxis(1);
+      float mod = 0.75f; 
+      moveRobot(j_x, j_y, mod);
+    }
+    
     // setting intake speed
     bool wantIntake = m_stick.GetRawButton(1);
-    intake.Set(ControlMode::PercentOutput, wantIntake ? -0.75 : 0);
+    intake.Set(ControlMode::PercentOutput, wantIntake ? -0.25 : 0);
 
     bool wantConvey = m_stick.GetRawButton(2);
     convey.Set(ControlMode::PercentOutput, wantConvey ? 0.5 : 0);
 
     // setting climb
-    float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
-    climbLeft.Set(ControlMode::PercentOutput, wantedClimbL);
+    //float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
+    //climbLeft.Set(ControlMode::PercentOutput, wantedClimbL);
 
-    float wantedClimbR = (m_stick.GetRawAxis(3) - m_stick.GetRawButton(6)) * 0.3;
-    climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
+    //float wantedClimbR = (m_stick.GetRawAxis(3) - m_stick.GetRawButton(6)) * 0.3;
+    //climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
+
+    // setting tilt
+    float wantedtilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * -0.35;
+    tilt.Set(ControlMode::PercentOutput, wantedtilt);
+
+    //shooters for now
+    float wantedShoot = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
+    
+    shootRight.Set(wantedShoot);
+    shootLeft.Set(wantedShoot*-1);
+    cout<<"val"<<wantedShoot<<endl;
   }
 
-  void AutonomousInit() override{
+
+  // ================== Autonomous Period ==================
+  void AutonomousPeriodic() override{
+    updatePosition();
+  }
+
+
+  // ================== Functions ==================
+  void initialize(){ // reset all the variables
     InitializePID(m_pidFL);
     InitializePID(m_pidBL);
     InitializePID(m_pidFR);
@@ -115,45 +156,118 @@ class Robot : public frc::TimedRobot {
     InitializePID(m_pidSL);
     InitializePID(m_pidSR);
     InitializePID(m_pidSlid);
-  }
 
-  void AutonomousPeriodic() override{
-    //convey.Set(ControlMode::PercentOutput, 0.5f);
-    //shootLeft.Set(0.5f);
-    //shootRight.Set(0.5f);
-    
-    // testing functions right now
-    // PIDCoeffecents(m_pidFL);
-    // m_pidFL.SetReference(1500, rev::ControlType::kVelocity);
-    // cout << FrontLeft.GetEncoder().GetVelocity() << endl;   
-    // intake.Set(ControlMode::PercentOutput, 0.5);
-    SmartDashboard::PutNumber(  "IMU_Yaw",              ahrs->GetYaw());
-    SmartDashboard::PutNumber(  "IMU_Pitch",            ahrs->GetPitch());
-    SmartDashboard::PutNumber(  "IMU_Roll",             ahrs->GetRoll());
-    
-    
-  }
+    frontLeft.Set(0);
+    frontRight.Set(0);
+    backLeft.Set(0);
+    backRight.Set(0);
+    shootLeft.Set(0);
+    shootRight.Set(0);
+    sliding.Set(0);
 
-  void moveRobot(float j_x, float j_y, float mod){
+    intake.Set(ControlMode::PercentOutput, 0);
+    convey.Set(ControlMode::PercentOutput, 0);
+    tilt.Set(ControlMode::PercentOutput, 0);
+    climbLeft.Set(ControlMode::PercentOutput, 0);
+    climbRight.Set(ControlMode::PercentOutput, 0);
+
+    ahrs -> ResetDisplacement();
+    originalAngle = ahrs -> GetAngle();
+
+    startX = pythonTable->GetEntry("StartingX").GetDouble(0);
+    startY = pythonTable->GetEntry("StartingY").GetDouble(0);
+  } 
+
+  void moveRobot(float j_x, float j_y, float mod){ // movement functions
     // not counting joystick if its close enough to 0
     if(j_x >= -0.05 && j_x <= 0.05) { j_x = 0; }
     if(j_y >= -0.05 && j_y <= 0.05) { j_y = 0; }
 
     // calculating the speed for left/right side in arcade drive
-    double speedL = max(-1.0f, min(1.0f, +j_y - j_x)) * mod;
-    speedL = j_x == 0 ? speedL : oldSL * (1 - 1/accelLerp) + (1/accelLerp) * speedL; 
+    double speedL = max(-1.0f, min(1.0f, +j_x - j_y)) * mod;
+    double speedR = max(-1.0f, min(1.0f, -j_x - j_y)) * mod;
 
-    double speedR = max(-1.0f, min(1.0f, -j_y - j_x)) * mod;
-    speedR = j_x == 0 ? speedR : oldSR * (1 - 1/accelLerp) + (1/accelLerp) * speedR;
-
-    oldSL = speedL;
-    oldSR = speedR;
+    // if we are not turning, then use custom coast. Else, use brake mode.
+    speedL = (oldSL != oldSR && j_y == 0 )? speedL : oldSL * (1 - 1/accelLerp) + (1/accelLerp) * speedL; 
+    speedR = (oldSL != oldSR && j_y == 0 ) ? speedR : oldSR * (1 - 1/accelLerp) + (1/accelLerp) * speedR;
 
     // setting neo motors to the set speed
     frontLeft.Set(speedL*-1);   
     backLeft.Set(speedL*-1);   
     frontRight.Set(speedR);   
     backRight.Set(speedR);  
+
+    // set the old variables for the next iteration
+    oldSL = speedL;
+    oldSR = speedR;
+  }
+
+  void updatePosition(){ // update our position and let pygame know where we are
+    nt::NetworkTableEntry offsetX = pythonTable->GetEntry("deltaX");
+    nt::NetworkTableEntry offsetY = pythonTable->GetEntry("deltaY");
+    nt::NetworkTableEntry offsetAngle = pythonTable->GetEntry("angle");
+    offsetX.SetDouble(ahrs -> GetDisplacementX());
+    offsetY.SetDouble(ahrs -> GetDisplacementZ());
+    offsetAngle.SetDouble(ahrs -> GetAngle() - originalAngle);    
+  }
+
+  void makePath(){ // check if we need to make a path
+    nt::NetworkTableEntry wantedX = pythonTable->GetEntry("moveX");
+    nt::NetworkTableEntry wantedY = pythonTable->GetEntry("moveY");
+    if (wantedX.GetDouble(0) != 0 && wantedY.GetDouble(0) != 0){
+      pathwayExists = true;
+      wantedSpot[0] = wantedX.GetDouble(0);
+      wantedX.SetDouble(0);
+      
+      wantedSpot[1] = wantedY.GetDouble(0);
+      wantedY.SetDouble(0);
+    }
+  }
+
+  void followPath(){ // follow path thats already made
+    // check if we made it
+    int currentSpot[2] = {startX + ahrs -> GetDisplacementX(), startY + ahrs -> GetDisplacementZ()};
+    double allowedDistance = 0.25;
+    if (pow(wantedSpot[0] - currentSpot[0], 2) + pow(wantedSpot[1] - currentSpot[1], 2) < pow(allowedDistance, 2)){
+      pathwayExists = false;
+      moveRobot(0, 0, 0.75);
+      return;
+    }
+
+    // continue moving, first get the angle
+    double degreeWanted = atan((wantedSpot[1] - currentSpot[1]) / (wantedSpot[0] - currentSpot[0])) * 180.0/3.141592653589793238463;
+    if (currentSpot[0] < wantedSpot[0]){ // if tan gave us the wrong angle 
+      degreeWanted += 180;
+    }else if (degreeWanted < 0){ // make it positive
+      degreeWanted += 360;
+    }
+    double realAngle = originalAngle + degreeWanted > 360 ? originalAngle + degreeWanted - 360 : originalAngle + degreeWanted;
+
+    // check if gyro is close to angle
+    double currentAngle = ahrs -> GetAngle();
+    if (abs(currentAngle - realAngle) > 5){
+      // adjust angles
+      moveRobot(((currentAngle < realAngle) ? 1 : -1), 1, 0.75);
+    }else{
+      // drive forward
+      moveRobot(0, 1, 0.75);
+    }
+  }
+
+  void autoShoot(){
+
+  }
+
+  void autoPickup(){
+
+  }
+
+  void autoBalance(){
+
+  }
+
+  void colourSpin(){
+
   }
 
   // checks for any changes in voltage stuff, just run this function and don't question it
@@ -209,3 +323,36 @@ class Robot : public frc::TimedRobot {
 #ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
 #endif
+
+/* Autonomous things weève tested
+  Network tables:
+  shared_ptr<NetworkTable> table = nt::NetworkTableInstance::GetDefault().GetTable("dataTest");
+  nt::NetworkTableEntry entryTest = table->GetEntry("X");
+  nt::NetworkTableEntry entryRec = table->GetEntry("Y");
+  entryTest.SetDouble(c);
+  c*=1.01;
+  cout<< entryRec.GetDouble(0) << endl;
+  
+  Colour spinning:
+  rotationLength = 12.5*(wantedSpins*8 + abs(colourPositions[startingColour] - colourPositions[wantedColour])); // in inches
+  if (rotationLength > 0){
+    double pi = 3.141592653589793238462643383279502884197169399375105820974944592307;
+    rotationLength -= 2*pi*0.02*sliding.GetEncoder().GetVelocity()/60;
+    sliding.Set((rotationLength > 0) ? 0.5f : 0);
+  }
+  map<string, int> colourPositions = {{"Green", 1}, {"Red", 2}, {"Yellow", 3}, {"Blue", 4}};
+  string startingColour = "Green";
+  string wantedColour = "Blue";
+  int wantedSpins = 3;
+  double rotationLength = 0;
+  
+  Neo Encoders:
+  PIDCoeffecents(m_pidFL);
+  m_pidFL.SetReference(1500, rev::ControlType::kVelocity);
+  cout << FrontLeft.GetEncoder().GetVelocity() << endl;   
+  intake.Set(ControlMode::PercentOutput, 0.5);
+  Gyro:
+  cout<<"IMU_Pitch "<<ahrs->GetPitch()<<" ";
+  cout<<"IMU_Yaw "<<ahrs->GetYaw()<<" ";
+  cout<<"IMU_Roll "<<ahrs->GetRoll()<<endl;
+*/
