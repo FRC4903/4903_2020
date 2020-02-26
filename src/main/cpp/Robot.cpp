@@ -124,10 +124,10 @@ class Robot : public frc::TimedRobot {
     }
     
     // setting intake speed
-    bool wantIntake = m_stick.GetRawButton(1);
+    bool wantIntake = m_stick.GetRawAxis(3) * 0.4; 
     intake.Set(ControlMode::PercentOutput, wantIntake ? -0.25 : 0);
 
-    bool wantConvey = m_stick.GetRawButton(2);
+    bool wantConvey = m_stick.GetRawButton(1);
     convey.Set(ControlMode::PercentOutput, wantConvey ? 0.5 : 0);
 
     // setting climb
@@ -142,7 +142,7 @@ class Robot : public frc::TimedRobot {
     tilt.Set(ControlMode::PercentOutput, wantedtilt);
 
     //shooters for now
-    float wantedShoot = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.5;
+    float wantedShoot = m_stick.GetRawAxis(2) * 0.5;
     
     shootRight.Set(wantedShoot);
     shootLeft.Set(wantedShoot*-1);
