@@ -142,7 +142,7 @@ class Robot : public frc::TimedRobot {
     tilt.Set(ControlMode::PercentOutput, wantedtilt);
 
     //shooters for now
-    float wantedShoot = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
+    float wantedShoot = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.5;
     
     shootRight.Set(wantedShoot);
     shootLeft.Set(wantedShoot*-1);
@@ -349,6 +349,7 @@ int main() { return frc::StartRobot<Robot>(); }
     rotationLength -= 2*pi*0.02*sliding.GetEncoder().GetVelocity()/60;
     sliding.Set((rotationLength > 0) ? 0.5f : 0);
   }
+
   map<string, int> colourPositions = {{"Green", 1}, {"Red", 2}, {"Yellow", 3}, {"Blue", 4}};
   string startingColour = "Green";
   string wantedColour = "Blue";
@@ -360,6 +361,7 @@ int main() { return frc::StartRobot<Robot>(); }
   m_pidFL.SetReference(1500, rev::ControlType::kVelocity);
   cout << FrontLeft.GetEncoder().GetVelocity() << endl;   
   intake.Set(ControlMode::PercentOutput, 0.5);
+
   Gyro:
   cout<<"IMU_Pitch "<<ahrs->GetPitch()<<" ";
   cout<<"IMU_Yaw "<<ahrs->GetYaw()<<" ";
