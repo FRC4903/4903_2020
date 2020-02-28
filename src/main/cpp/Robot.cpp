@@ -14,7 +14,7 @@
 #include <frc/trajectory/TrajectoryUtil.h>
 #include <frc/geometry/Pose2d.h>
 #include <frc/trajectory/TrajectoryGenerator.h>
-
+#include <frc/Encoder.h>
 using namespace std;
 using namespace frc;
 
@@ -29,13 +29,17 @@ class Robot : public frc::TimedRobot {
   rev::CANSparkMax sliding{8, rev::CANSparkMax::MotorType::kBrushless};
   rev::CANSparkMax shootRight{9, rev::CANSparkMax::MotorType::kBrushless};
   rev::CANSparkMax shootLeft{12, rev::CANSparkMax::MotorType::kBrushless};
-
+  //joystick
+  frc::Joystick m_stick{0};
   // talons
   TalonSRX intake;
   TalonSRX convey;
   TalonSRX tilt;
   TalonSRX climbLeft;
   TalonSRX climbRight;
+
+  //encoders
+  frc::Encoder tiltEncoder;
 
   // PID controllers for the neo motors
   rev::CANPIDController m_pidFL= frontLeft.GetPIDController();
@@ -62,6 +66,9 @@ class Robot : public frc::TimedRobot {
   float oldSL = 0;
   float oldSR = 0;
   double originalAngle = -1;
+  double tiltMax=10000;
+  double tiltMin=-10000;
+
 
   int wantedSpot[2] = {};
   bool pathwayExists = false;
@@ -72,7 +79,8 @@ class Robot : public frc::TimedRobot {
     convey(6),
     tilt(7),
     climbLeft(10),
-    climbRight(11)
+    climbRight(11),
+    tiltEncoder(0,1)
   {
     try {
             /* Communicate w/navX-MXP via the MXP SPI Bus.                                       */
@@ -90,6 +98,7 @@ class Robot : public frc::TimedRobot {
   
   // ================== Initialization periods ==================
   void TeleopInit() override{
+    
     initialize();
   }
   
@@ -156,7 +165,7 @@ class Robot : public frc::TimedRobot {
       shootLeft.Set(wantedShoot*-1);
     }
 
-    
+    cout<<tiltEncoder.GetDistance()<<endl;
   }
 
 
@@ -401,9 +410,8 @@ class Robot : public frc::TimedRobot {
     frc::SmartDashboard::PutNumber("Max Output", kMaxOutput);
     frc::SmartDashboard::PutNumber("Min Output", kMinOutput);
   }
- private:
-  // ================== defining private variables ==================
-  frc::Joystick m_stick{0};
+ 
+  
 };
 
 // needed code for frc
