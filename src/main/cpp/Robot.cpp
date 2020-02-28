@@ -31,6 +31,7 @@ class Robot : public frc::TimedRobot {
   rev::CANSparkMax shootLeft{12, rev::CANSparkMax::MotorType::kBrushless};
   //joystick
   frc::Joystick m_stick{0};
+  frc::Joystick m_stick2{1};
   // talons
   TalonSRX intake;
   TalonSRX convey;
@@ -66,8 +67,10 @@ class Robot : public frc::TimedRobot {
   float oldSL = 0;
   float oldSR = 0;
   double originalAngle = -1;
-  double tiltMax=10000;
-  double tiltMin=-10000;
+  double tiltMax=67562;
+  double tiltMin=-100000;
+  bool reverse;
+  
 
 
   int wantedSpot[2] = {};
@@ -108,6 +111,7 @@ class Robot : public frc::TimedRobot {
 
   // ================== During Teleop period ==================
   void TeleopPeriodic() override {  
+    reverse=m_stick.GetRawButton(5);
     updatePosition(); // update our current position
 
     // check if we're forced to follow a path
@@ -133,12 +137,13 @@ class Robot : public frc::TimedRobot {
       moveRobot(j_x, j_y, mod);
     }
     
+    
     // setting intake speed
-    double wantIntake = m_stick.GetRawAxis(3) * -0.5; 
+    double wantIntake = (m_stick2.GetRawButton(1)-m_stick2.GetRawButton(3)) * -0.5; 
     intake.Set(ControlMode::PercentOutput, wantIntake);
 
-    bool wantConvey = m_stick.GetRawButton(1);
-    convey.Set(ControlMode::PercentOutput, wantConvey ? 0.35 : 0);
+    bool wantConvey = m_stick2.GetRawAxis(1)*0.35;
+    convey.Set(ControlMode::PercentOutput,wantConvey);
 
     // setting climb
     //float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
@@ -148,27 +153,20 @@ class Robot : public frc::TimedRobot {
     //climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
 
     // setting tilt
-<<<<<<< HEAD
     float wantedTilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * 0.75;
     if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt<0)||!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt>0)){
       
     }
     tilt.Set(ControlMode::PercentOutput, wantedTilt);
     
-=======
-    float wantedtilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * 0.55;
-    tilt.Set(ControlMode::PercentOutput, wantedtilt);
->>>>>>> bae1a27ffca7dc8062438cfb8edf4826fb5d1e41
+
 
     //shooters for now
     float wantedShoot = m_stick.GetRawAxis(2) * 0.75;
     shootRight.Set(wantedShoot);
     shootLeft.Set(wantedShoot*-1);
-<<<<<<< HEAD
     
     cout<<tiltEncoder.GetDistance()<<endl;
-=======
->>>>>>> bae1a27ffca7dc8062438cfb8edf4826fb5d1e41
   }
 
 
