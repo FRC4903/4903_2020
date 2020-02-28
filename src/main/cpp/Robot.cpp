@@ -294,7 +294,7 @@ class Robot : public frc::TimedRobot {
 
   int moveAlong = 0; // temp solution before encoder is added
   int canMake = 0;
-  void autoShoot(){ // shooting time
+  void autoShoot(){ // shooting time; adjust distances; ignore the pulsing for searching; make sure tilt adjustment is good
     PIDCoefficients(m_pidSL);
     PIDCoefficients(m_pidSR);
     
@@ -339,7 +339,7 @@ class Robot : public frc::TimedRobot {
           dir /= 2;
         }
         
-        //tilt.Set(ControlMode::PercentOutput, 0.65 * dir);
+        tilt.Set(ControlMode::PercentOutput, 0.65 * dir);
         moveRobot(0, 0, 1);
         canMake = 0;
         cout << "Adjusting Y" << endl;
