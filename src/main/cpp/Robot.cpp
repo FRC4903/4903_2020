@@ -60,6 +60,7 @@ class Robot : public frc::TimedRobot {
 
   // constants and variables
   double kP = 6e-5, kI = 1e-6, kD = 0, kIz = 0, kFF = 0.000015, kMaxOutput = 1.0, kMinOutput = -1.0; 
+  Timer *gameTimer = new Timer();
   double startX, startY;
   float accelLerp = 20;
   float oldSL = 0;
@@ -174,7 +175,11 @@ class Robot : public frc::TimedRobot {
   // ================== Autonomous Period ==================
   void AutonomousPeriodic() override{
     //updatePosition();
-    autoShoot();
+    if (gameTimer ->Get() > 12.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
+      moveRobot(0, -1, -0.2f);
+    }else{
+      autoShoot();
+    }
   }
 
   // ================== Functions ==================
@@ -204,11 +209,15 @@ class Robot : public frc::TimedRobot {
     moveAlong = 0; 
     canMake = 0;
 
+    gameTimer -> Start();
+    gameTimer -> Reset();
+
     ahrs -> ResetDisplacement();
     originalAngle = ahrs -> GetAngle();
 
     startX = pythonTable->GetEntry("StartingX").GetDouble(0);
     startY = pythonTable->GetEntry("StartingY").GetDouble(0);
+    
   } 
 
   void moveRobot(float j_x, float j_y, float mod){ // movement functions
@@ -315,7 +324,7 @@ class Robot : public frc::TimedRobot {
       moveRobot(1, 0, 0.4f);
       cout << "Looking for target" << endl;
 
-    } else if (abs(targetOffsetAngle_Horizontal) < 3 || canMake > 5){
+    } else if (abs(targetOffsetAngle_Horizontal) < 2 || canMake > 5){
       if (abs(targetOffsetAngle_Vertical) < 3 || canMake > 5){ 
         // Let it shoot
         moveRobot(0, 0, 1);
