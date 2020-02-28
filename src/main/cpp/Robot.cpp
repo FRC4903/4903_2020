@@ -128,7 +128,7 @@ class Robot : public frc::TimedRobot {
     intake.Set(ControlMode::PercentOutput, wantIntake);
 
     bool wantConvey = m_stick.GetRawButton(1);
-    convey.Set(ControlMode::PercentOutput, wantConvey ? 0.18 : 0);
+    convey.Set(ControlMode::PercentOutput, wantConvey ? 0.35 : 0);
 
     // setting climb
     //float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
@@ -273,7 +273,7 @@ class Robot : public frc::TimedRobot {
     double targetOffsetAngle_Horizontal = frontLL->GetNumber("tx",0.0) - 2.48;
     double targetOffsetAngle_Vertical = frontLL->GetNumber("ty",0.0) + 9;
     double targetArea = frontLL->GetNumber("ta",0.0);
-    double shootingPower = 2800;
+    double shootingPower = 2650;
 
     // shooting at all times because it takes time to get to correst speed
     m_pidSL.SetReference(shootingPower * -1, rev::ControlType::kVelocity);
@@ -370,7 +370,7 @@ class Robot : public frc::TimedRobot {
     m_pidController.SetOutputRange(kMinOutput, kMaxOutput);
 
     // accel stuff
-    m_pidController.SetSmartMotionMaxAccel(0.01);
+    m_pidController.SetSmartMotionMaxAccel(10);
 
     // display PID coefficients on SmartDashboard
     frc::SmartDashboard::PutNumber("P Gain", kP);
