@@ -124,11 +124,11 @@ class Robot : public frc::TimedRobot {
     }
     
     // setting intake speed
-    double wantIntake = m_stick.GetRawAxis(3) * -0.75; 
+    double wantIntake = m_stick.GetRawAxis(3) * -0.5; 
     intake.Set(ControlMode::PercentOutput, wantIntake);
 
     bool wantConvey = m_stick.GetRawButton(1);
-    convey.Set(ControlMode::PercentOutput, wantConvey ? 0.5 : 0);
+    convey.Set(ControlMode::PercentOutput, wantConvey ? 0.18 : 0);
 
     // setting climb
     //float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
@@ -138,14 +138,13 @@ class Robot : public frc::TimedRobot {
     //climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
 
     // setting tilt
-    float wantedtilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * 0.75;
+    float wantedtilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * 0.55;
     tilt.Set(ControlMode::PercentOutput, wantedtilt);
 
     //shooters for now
     float wantedShoot = m_stick.GetRawAxis(2) * 0.5;
     shootRight.Set(wantedShoot);
     shootLeft.Set(wantedShoot*-1);
-    cout<<"val"<<wantedShoot<<endl;
   }
 
 
@@ -154,7 +153,6 @@ class Robot : public frc::TimedRobot {
     //updatePosition();
     autoShoot();
   }
-
 
   // ================== Functions ==================
   void initialize(){ // reset all the variables
@@ -179,6 +177,9 @@ class Robot : public frc::TimedRobot {
     tilt.Set(ControlMode::PercentOutput, 0);
     climbLeft.Set(ControlMode::PercentOutput, 0);
     climbRight.Set(ControlMode::PercentOutput, 0);
+
+    moveAlong = 0; 
+    canMake = 0;
 
     ahrs -> ResetDisplacement();
     originalAngle = ahrs -> GetAngle();
@@ -266,47 +267,61 @@ class Robot : public frc::TimedRobot {
   int moveAlong = 0; // temp solution before encoder is added
   int canMake = 0;
   void autoShoot(){ // shooting time
-    double targetOffsetAngle_Horizontal = frontLL->GetNumber("tx",0.0);
-    double targetOffsetAngle_Vertical = frontLL->GetNumber("ty",0.0);
+    PIDCoefficients(m_pidSL);
+    PIDCoefficients(m_pidSR);
+    
+    double targetOffsetAngle_Horizontal = frontLL->GetNumber("tx",0.0) - 2.48;
+    double targetOffsetAngle_Vertical = frontLL->GetNumber("ty",0.0) + 9;
     double targetArea = frontLL->GetNumber("ta",0.0);
-    double shootingPower = 0.75;
+    double shootingPower = 2800;
 
     // shooting at all times because it takes time to get to correst speed
-    shootLeft.Set(-1 * shootingPower);    
-    shootRight.Set(shootingPower); 
+    m_pidSL.SetReference(shootingPower * -1, rev::ControlType::kVelocity);
+    m_pidSR.SetReference(shootingPower, rev::ControlType::kVelocity);
 
     cout<< "Y value: " << targetOffsetAngle_Vertical << " and area of " << targetArea << " with shooter speeds of "
       << shootLeft.GetEncoder().GetVelocity() << " " << shootRight.GetEncoder().GetVelocity() << endl;
 
-    if (moveAlong == 0){ // remove other velocities from the balls
-      moveAlong = 20;
+    if (moveAlong == 0 || abs(shootLeft.GetEncoder().GetVelocity() - shootingPower*-1) > 100  || abs(shootRight.GetEncoder().GetVelocity() - shootingPower) > 100 ) { // remove other velocities from the balls or wait for speed to go full
+      moveAlong = 3;
       moveRobot(0, 0, 1);
       convey.Set(ControlMode::PercentOutput, 0);
       tilt.Set(ControlMode::PercentOutput, 0);
-
     }else if (targetArea < 0.05f && canMake < 5) { // no target and not moving onto one
       canMake = 0;
       moveRobot(1, 0, 0.4f);
       cout << "Looking for target" << endl;
 
     } else if (abs(targetOffsetAngle_Horizontal) < 3 || canMake > 5){
-      if (abs(targetOffsetAngle_Vertical) < 2|| canMake > 5){ 
+      if (abs(targetOffsetAngle_Vertical) < 3 || canMake > 5){ 
         // Let it shoot
         moveRobot(0, 0, 1);
-        convey.Set(ControlMode::PercentOutput, 0.75);
+        convey.Set(ControlMode::PercentOutput, 0.3);
         canMake++;
+        if (canMake > 10){ // lose confidence again
+          canMake = 4;
+        }
         moveAlong--;
+        cout << "Shooting" << endl;
 
       } else{
         // adjust the tilt
-        int dir = targetOffsetAngle_Vertical < 0;
-        tilt.Set(ControlMode::PercentOutput, -0.4 * dir);
+        double dir = (int)(targetOffsetAngle_Vertical > 0)*2-1;
+        if (abs(targetOffsetAngle_Vertical) < 5){ // slow down the tilt when we're  close
+          dir /= 2;
+        }
+        
+        //tilt.Set(ControlMode::PercentOutput, 0.65 * dir);
+        moveRobot(0, 0, 1);
         canMake = 0;
+        cout << "Adjusting Y" << endl;
       }
     }else{
       // turn the robot to allign with the shoot
-      moveRobot((int)(targetOffsetAngle_Horizontal > 0), 0, 0.5);
+      tilt.Set(ControlMode::PercentOutput, 0);
+      moveRobot((int)(targetOffsetAngle_Horizontal > 0)*2-1, 0, (abs(targetOffsetAngle_Horizontal < 10) ? 0.15 : 0.4));
       canMake = 0;
+      cout << "Adjusting X" << endl;
     }
   }
 
