@@ -111,12 +111,11 @@ class Robot : public frc::TimedRobot {
   void TeleopPeriodic() override {  
     updatePosition(); // update our current position
     if (m_stick.GetRawButtonPressed(2)){
-      isShooting != isShooting;
+      isShooting = !isShooting;
     }
 
     if (isShooting){
       autoShoot();
-
     }else{
       // check if we're forced to follow a path
       if (pathwayExists){
