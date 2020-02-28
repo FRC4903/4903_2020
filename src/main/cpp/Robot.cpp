@@ -111,7 +111,8 @@ class Robot : public frc::TimedRobot {
   }
 
   // ================== During Teleop period ==================
-  void TeleopPeriodic() override {  
+  void TeleopPeriodic() override {
+    if (m_stick.GetRawButtonPressed(2)){
       isShooting = !isShooting;
     }
     if (isShooting){
