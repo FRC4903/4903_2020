@@ -151,7 +151,8 @@ class Robot : public frc::TimedRobot {
 
   // ================== Autonomous Period ==================
   void AutonomousPeriodic() override{
-    updatePosition();
+    //updatePosition();
+    autoShoot();
   }
 
 
@@ -262,8 +263,51 @@ class Robot : public frc::TimedRobot {
     }
   }
 
-  void autoShoot(){
+  int moveAlong = 0; // temp solution before encoder is added
+  int canMake = 0;
+  void autoShoot(){ // shooting time
+    double targetOffsetAngle_Horizontal = frontLL->GetNumber("tx",0.0);
+    double targetOffsetAngle_Vertical = frontLL->GetNumber("ty",0.0);
+    double targetArea = frontLL->GetNumber("ta",0.0);
+    double shootingPower = 0.75;
 
+    // shooting at all times because it takes time to get to correst speed
+    shootLeft.Set(-1 * shootingPower);    
+    shootRight.Set(shootingPower); 
+
+    cout<< "Y value: " << targetOffsetAngle_Vertical << " and area of " << targetArea << " with shooter speeds of "
+      << shootLeft.GetEncoder().GetVelocity() << " " << shootRight.GetEncoder().GetVelocity() << endl;
+
+    if (moveAlong == 0){ // remove other velocities from the balls
+      moveAlong = 20;
+      moveRobot(0, 0, 1);
+      convey.Set(ControlMode::PercentOutput, 0);
+      tilt.Set(ControlMode::PercentOutput, 0);
+
+    }else if (targetArea < 0.05f && canMake < 5) { // no target and not moving onto one
+      canMake = 0;
+      moveRobot(1, 0, 0.4f);
+      cout << "Looking for target" << endl;
+
+    } else if (abs(targetOffsetAngle_Horizontal) < 3 || canMake > 5){
+      if (abs(targetOffsetAngle_Vertical) < 2|| canMake > 5){ 
+        // Let it shoot
+        moveRobot(0, 0, 1);
+        convey.Set(ControlMode::PercentOutput, 0.75);
+        canMake++;
+        moveAlong--;
+
+      } else{
+        // adjust the tilt
+        int dir = targetOffsetAngle_Vertical < 0;
+        tilt.Set(ControlMode::PercentOutput, -0.4 * dir);
+        canMake = 0;
+      }
+    }else{
+      // turn the robot to allign with the shoot
+      moveRobot((int)(targetOffsetAngle_Horizontal > 0), 0, 0.5);
+      canMake = 0;
+    }
   }
 
   void autoPickup(){
