@@ -70,6 +70,7 @@ class Robot : public frc::TimedRobot {
   double tiltMax=67562;
   double tiltMin=-100000;
   bool reverse;
+  bool isShooting = false;
   
 
 
@@ -111,6 +112,14 @@ class Robot : public frc::TimedRobot {
 
   // ================== During Teleop period ==================
   void TeleopPeriodic() override {  
+      isShooting = !isShooting;
+    }
+    if (isShooting){
+      autoShoot();
+      return ;
+
+    }  
+    
     reverse=m_stick.GetRawButton(5);
     updatePosition(); // update our current position
 
@@ -128,21 +137,12 @@ class Robot : public frc::TimedRobot {
       float mod = 0.75f; 
       moveRobot(j_x, j_y, mod);
     }
-
-    if (!pathwayExists){
-      // arcade drive
-      float j_x = m_stick.GetRawAxis(4);
-      float j_y = m_stick.GetRawAxis(1);
-      float mod = 0.75f; 
-      moveRobot(j_x, j_y, mod);
-    }
-    
     
     // setting intake speed
     double wantIntake = (m_stick2.GetRawButton(1)-m_stick2.GetRawButton(3)) * -0.5; 
     intake.Set(ControlMode::PercentOutput, wantIntake);
 
-    bool wantConvey = m_stick2.GetRawAxis(1)*0.35;
+    double wantConvey = -m_stick2.GetRawAxis(1)*0.4;
     convey.Set(ControlMode::PercentOutput,wantConvey);
 
     // setting climb
@@ -341,7 +341,7 @@ class Robot : public frc::TimedRobot {
           dir /= 2;
         }
         
-        //tilt.Set(ControlMode::PercentOutput, 0.65 * dir);
+        tilt.Set(ControlMode::PercentOutput, 0.65 * dir);
         moveRobot(0, 0, 1);
         canMake = 0;
         cout << "Adjusting Y" << endl;
