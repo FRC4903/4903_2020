@@ -133,6 +133,7 @@ class Robot : public frc::TimedRobot {
     }
     
     // setting intake speed
+    double wantIntake = m_stick.GetRawAxis(3) * -0.5; 
     intake.Set(ControlMode::PercentOutput, wantIntake);
 
     bool wantConvey = m_stick.GetRawButton(1);
@@ -392,6 +393,7 @@ class Robot : public frc::TimedRobot {
     m_pidController.SetOutputRange(kMinOutput, kMaxOutput);
 
     // accel stuff
+    m_pidController.SetSmartMotionMaxAccel(10);
 
     // display PID coefficients on SmartDashboard
     frc::SmartDashboard::PutNumber("P Gain", kP);
