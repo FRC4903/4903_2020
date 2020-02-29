@@ -111,11 +111,11 @@ class Robot : public frc::TimedRobot {
 
   // ================== During Teleop period ==================
   void TeleopPeriodic() override {
-    updatePosition(); // update our current position
-    if (m_stick.GetRawButtonPressed(3)){
-      isShooting = !isShooting;
-    }
-    
+    // update our current position
+    updatePosition(); 
+
+    // auto shooting
+    if (m_stick.GetRawButtonPressed(3)){ isShooting = !isShooting;}
     if (isShooting){
       autoShoot();
       return ;
@@ -128,9 +128,9 @@ class Robot : public frc::TimedRobot {
       makePath();
     }
 
+    // arcade drive
     if (!pathwayExists){
-      // arcade drive
-      float j_x = m_stick.GetRawAxis(4); // 1 becomes -1, 0 becomes 1
+      float j_x = m_stick.GetRawAxis(4);
       float j_y = m_stick.GetRawAxis(1);
       float mod = 0.75f; 
       moveRobot(m_stick.GetRawButton(10) ? j_x*-1 : j_x*-1, m_stick.GetRawButton(9) ? j_y * -1 : j_y, mod);
@@ -162,9 +162,10 @@ class Robot : public frc::TimedRobot {
 
   // ================== Autonomous Period ==================
   void AutonomousPeriodic() override{
-    //updatePosition();
+    updatePosition();
     if (gameTimer ->Get() > 12.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
       moveRobot(0, -1, -0.2f);
+      cout<< ahrs -> GetDisplacementX() << " " << ahrs -> GetDisplacementY << " " << ahrs ->GetDisplacementZ << endl;
     }else{
       autoShoot();
     }
