@@ -67,8 +67,8 @@ class Robot : public frc::TimedRobot {
   float oldSL = 0;
   float oldSR = 0;
   double originalAngle = -1;
-  double tiltMax=67562;
-  double tiltMin=-100000;
+  double tiltMax=50000;
+  double tiltMin=-130000;
   bool reverse;
   bool isShooting = false;
   
@@ -83,7 +83,7 @@ class Robot : public frc::TimedRobot {
     tilt(7),
     climbLeft(10),
     climbRight(11),
-    tiltEncoder(0,1)
+    tiltEncoder(8,9)
   {
     try {
             /* Communicate w/navX-MXP via the MXP SPI Bus.                                       */
@@ -101,6 +101,7 @@ class Robot : public frc::TimedRobot {
   
   // ================== Initialization periods ==================
   void TeleopInit() override{
+    tiltEncoder.Reset();
     
     initialize();
   }
@@ -111,6 +112,7 @@ class Robot : public frc::TimedRobot {
 
   // ================== During Teleop period ==================
   void TeleopPeriodic() override {
+    
     // update our current position
     updatePosition(); 
 
@@ -119,9 +121,10 @@ class Robot : public frc::TimedRobot {
     if (isShooting){
       autoShoot();
       return ;
-    } else{
-      shootLeft.Set(0);
-      shootRight.Set(0);
+    }else{
+      double wantedShoot = m_stick2.GetRawAxis(3)*0.5;
+      shootLeft.Set(wantedShoot *-1);
+      shootRight.Set(wantedShoot);
     }
 
     // check if we're forced to follow a path
@@ -155,10 +158,10 @@ class Robot : public frc::TimedRobot {
 
     // setting tilt
     float wantedTilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(2)) * 0.75;
-    if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt<0)||!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt>0)){
-
+    if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt>0)&&!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt<0)){
+      tilt.Set(ControlMode::PercentOutput, wantedTilt); 
     }
-    tilt.Set(ControlMode::PercentOutput, wantedTilt);    
+       
     cout<<tiltEncoder.GetDistance()<<endl;
   }
 
@@ -206,6 +209,7 @@ class Robot : public frc::TimedRobot {
 
     ahrs -> ResetDisplacement();
     originalAngle = ahrs -> GetAngle();
+    isShooting = false;
 
     startX = pythonTable->GetEntry("StartingX").GetDouble(0);
     startY = pythonTable->GetEntry("StartingY").GetDouble(0);
