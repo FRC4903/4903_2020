@@ -67,8 +67,8 @@ class Robot : public frc::TimedRobot {
   float oldSL = 0;
   float oldSR = 0;
   double originalAngle = -1;
-  double tiltMax=67562;
-  double tiltMin=-100000;
+  double tiltMax=50000;
+  double tiltMin=-130000;
   bool reverse;
   bool isShooting = false;
   
@@ -101,6 +101,7 @@ class Robot : public frc::TimedRobot {
   
   // ================== Initialization periods ==================
   void TeleopInit() override{
+    tiltEncoder.Reset();
     
     initialize();
   }
@@ -111,6 +112,7 @@ class Robot : public frc::TimedRobot {
 
   // ================== During Teleop period ==================
   void TeleopPeriodic() override {
+    
     // update our current position
     updatePosition(); 
 
@@ -133,7 +135,7 @@ class Robot : public frc::TimedRobot {
       float j_x = m_stick.GetRawAxis(4);
       float j_y = m_stick.GetRawAxis(1);
       float mod = 0.75f; 
-      moveRobot(m_stick.GetRawButton(10) ? j_x*-1 : j_x*-1, m_stick.GetRawButton(9) ? j_y * -1 : j_y, mod);
+      moveRobot(m_stick.GetRawButton(10) ? j_x*-1 : j_x, m_stick.GetRawButton(9) ? j_y * -1 : j_y, mod);
     }
     
     // setting intake speed from co-pilot
@@ -152,10 +154,10 @@ class Robot : public frc::TimedRobot {
 
     // setting tilt
     float wantedTilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(2)) * 0.75;
-    if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt<0)||!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt>0)){
-
+    if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt>0)||!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt<0)){
+      tilt.Set(ControlMode::PercentOutput, wantedTilt); 
     }
-    tilt.Set(ControlMode::PercentOutput, wantedTilt);    
+       
     cout<<tiltEncoder.GetDistance()<<endl;
   }
 
@@ -165,7 +167,7 @@ class Robot : public frc::TimedRobot {
     updatePosition();
     if (gameTimer ->Get() > 12.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
       moveRobot(0, -1, -0.2f);
-      cout<< ahrs -> GetDisplacementX() << " " << ahrs -> GetDisplacementY << " " << ahrs ->GetDisplacementZ << endl;
+      cout<< ahrs -> GetDisplacementX() << " " << ahrs -> GetDisplacementY() << " " << ahrs ->GetDisplacementZ() << endl;
     }else{
       autoShoot();
     }
@@ -203,6 +205,7 @@ class Robot : public frc::TimedRobot {
 
     ahrs -> ResetDisplacement();
     originalAngle = ahrs -> GetAngle();
+    isShooting = false;
 
     startX = pythonTable->GetEntry("StartingX").GetDouble(0);
     startY = pythonTable->GetEntry("StartingY").GetDouble(0);
