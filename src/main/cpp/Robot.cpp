@@ -83,7 +83,7 @@ class Robot : public frc::TimedRobot {
     tilt(7),
     climbLeft(10),
     climbRight(11),
-    tiltEncoder(0,1)
+    tiltEncoder(8,9)
   {
     try {
             /* Communicate w/navX-MXP via the MXP SPI Bus.                                       */
@@ -121,7 +121,11 @@ class Robot : public frc::TimedRobot {
     if (isShooting){
       autoShoot();
       return ;
-    }  
+    }else{
+      double wantedShoot = m_stick2.GetRawAxis(3)*0.5;
+      shootLeft.Set(wantedShoot *-1);
+      shootRight.Set(wantedShoot);
+    }
 
     // check if we're forced to follow a path
     if (pathwayExists){
@@ -154,7 +158,7 @@ class Robot : public frc::TimedRobot {
 
     // setting tilt
     float wantedTilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(2)) * 0.75;
-    if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt>0)||!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt<0)){
+    if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt>0)&&!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt<0)){
       tilt.Set(ControlMode::PercentOutput, wantedTilt); 
     }
        
