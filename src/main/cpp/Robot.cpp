@@ -62,7 +62,7 @@ class Robot : public frc::TimedRobot {
   double kP = 6e-5, kI = 1e-6, kD = 0, kIz = 0, kFF = 0.000015, kMaxOutput = 1.0, kMinOutput = -1.0; 
   Timer *gameTimer = new Timer();
   double startX, startY;
-  float accelLerp = 20;
+  float accelLerp = 25;
   float oldSL = 0;
   float oldSR = 0;
   double originalAngle = -1;
@@ -184,9 +184,9 @@ class Robot : public frc::TimedRobot {
     InitializePID(m_pidBL);
     InitializePID(m_pidFR);
     InitializePID(m_pidBR);
-    InitializePID(m_pidSL);
-    InitializePID(m_pidSR);
-    InitializePID(m_pidSlid);
+    InitializePID(m_pidSL, true);
+    InitializePID(m_pidSR, true);
+    InitializePID(m_pidSlid, true);
 
     frontLeft.Set(0);
     frontRight.Set(0);
@@ -297,11 +297,15 @@ class Robot : public frc::TimedRobot {
   void autoShoot(){ // shooting time; adjust distances; ignore the pulsing for searching; make sure tilt adjustment is good
     PIDCoefficients(m_pidSL);
     PIDCoefficients(m_pidSR);
-    
-    double targetOffsetAngle_Horizontal = frontLL->GetNumber("tx",0.0) - 2.48;
-    double targetOffsetAngle_Vertical = frontLL->GetNumber("ty",0.0) + 9;
-    double targetArea = frontLL->GetNumber("ta",0.0);
+    double xOffsetWanted = -2.48;
+    double yOffsetWanted = 9;
+    double angleAllowedX = 2;
+    double angleAllowedY = 1.5;
     double shootingPower = 2650;
+    
+    double targetOffsetAngle_Horizontal = frontLL->GetNumber("tx",0.0) + xOffsetWanted;
+    double targetOffsetAngle_Vertical = frontLL->GetNumber("ty",0.0) + yOffsetWanted;
+    double targetArea = frontLL->GetNumber("ta",0.0);
 
     // shooting at all times because it takes time to get to correst speed
     m_pidSL.SetReference(shootingPower * -1, rev::ControlType::kVelocity);
@@ -310,26 +314,30 @@ class Robot : public frc::TimedRobot {
     cout<< "Y value: " << targetOffsetAngle_Vertical << " and area of " << targetArea << " with shooter speeds of "
       << shootLeft.GetEncoder().GetVelocity() << " " << shootRight.GetEncoder().GetVelocity() << endl;
 
-    if (moveAlong == 0 || abs(shootLeft.GetEncoder().GetVelocity() - shootingPower*-1) > 100  || abs(shootRight.GetEncoder().GetVelocity() - shootingPower) > 100 ) { // remove other velocities from the balls or wait for speed to go full
-      moveAlong = 3;
-      moveRobot(0, 0, 1);
-      convey.Set(ControlMode::PercentOutput, 0);
-      tilt.Set(ControlMode::PercentOutput, 0);
-    }else if (targetArea < 0.05f && canMake < 5) { // no target and not moving onto one
+    if (targetArea < 0.05f && canMake < 5) { 
+      // no target and not moving onto one
       canMake = 0;
       moveRobot(1, 0, 0.4f);
       cout << "Looking for target" << endl;
 
-    } else if (abs(targetOffsetAngle_Horizontal) < 2 || canMake > 5){
-      if (abs(targetOffsetAngle_Vertical) < 3 || canMake > 5){ 
-        // Let it shoot
+    } else if (abs(targetOffsetAngle_Horizontal) < angleAllowedX || canMake > 5){
+      if (abs(targetOffsetAngle_Vertical) < angleAllowedY || canMake > 5){ 
+        // We can make the shot!
         moveRobot(0, 0, 1);
-        convey.Set(ControlMode::PercentOutput, 0.3);
+        if (moveAlong == 0 || abs(shootLeft.GetEncoder().GetVelocity() - shootingPower*-1) > 100  || abs(shootRight.GetEncoder().GetVelocity() - shootingPower) > 75 ) { 
+          // remove other velocities from the balls or wait for speed to go full
+          moveAlong = 3;
+          convey.Set(ControlMode::PercentOutput, 0);
+          tilt.Set(ControlMode::PercentOutput, 0);
+        }else{
+          convey.Set(ControlMode::PercentOutput, 0.3);
+        }
+
         canMake++;
-        if (canMake > 10){ // lose confidence again
+        moveAlong--;
+        if (canMake > 8){ // lose confidence again just in case
           canMake = 4;
         }
-        moveAlong--;
         cout << "Shooting" << endl;
 
       } else{
@@ -388,7 +396,7 @@ class Robot : public frc::TimedRobot {
     }
   }
 
-  void InitializePID(rev::CANPIDController& m_pidController){
+  void InitializePID(rev::CANPIDController& m_pidController, bool isShooter = false){
     // set PID coefficients
     m_pidController.SetP(kP);
     m_pidController.SetI(kI);
@@ -398,7 +406,7 @@ class Robot : public frc::TimedRobot {
     m_pidController.SetOutputRange(kMinOutput, kMaxOutput);
 
     // accel stuff
-    m_pidController.SetSmartMotionMaxAccel(10);
+    m_pidController.SetSmartMotionMaxAccel((isShooter ? 10 : 0.01));
 
     // display PID coefficients on SmartDashboard
     frc::SmartDashboard::PutNumber("P Gain", kP);
