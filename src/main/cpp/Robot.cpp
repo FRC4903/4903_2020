@@ -119,7 +119,10 @@ class Robot : public frc::TimedRobot {
     if (isShooting){
       autoShoot();
       return ;
-    }  
+    } else{
+      shootLeft.Set(0);
+      shootRight.Set(0);
+    }
 
     // check if we're forced to follow a path
     if (pathwayExists){
@@ -133,7 +136,7 @@ class Robot : public frc::TimedRobot {
       float j_x = m_stick.GetRawAxis(4);
       float j_y = m_stick.GetRawAxis(1);
       float mod = 0.75f; 
-      moveRobot(m_stick.GetRawButton(10) ? j_x*-1 : j_x*-1, m_stick.GetRawButton(9) ? j_y * -1 : j_y, mod);
+      moveRobot(m_stick.GetRawButton(10) ? j_x*-1 : j_x, m_stick.GetRawButton(9) ? j_y * -1 : j_y, mod);
     }
     
     // setting intake speed from co-pilot
@@ -165,7 +168,7 @@ class Robot : public frc::TimedRobot {
     updatePosition();
     if (gameTimer ->Get() > 12.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
       moveRobot(0, -1, -0.2f);
-      cout<< ahrs -> GetDisplacementX() << " " << ahrs -> GetDisplacementY << " " << ahrs ->GetDisplacementZ << endl;
+      cout<< ahrs -> GetDisplacementX() << " " << ahrs -> GetDisplacementY() << " " << ahrs ->GetDisplacementZ() << endl;
     }else{
       autoShoot();
     }
@@ -294,7 +297,7 @@ class Robot : public frc::TimedRobot {
     double yOffsetWanted = 9;
     double angleAllowedX = 2;
     double angleAllowedY = 1.5;
-    double shootingPower = 2650;
+    double shootingPower = 2675; // ta of 2; 2675
     
     double targetOffsetAngle_Horizontal = frontLL->GetNumber("tx",0.0) + xOffsetWanted;
     double targetOffsetAngle_Vertical = frontLL->GetNumber("ty",0.0) + yOffsetWanted;
@@ -317,7 +320,7 @@ class Robot : public frc::TimedRobot {
       if (abs(targetOffsetAngle_Vertical) < angleAllowedY || canMake > 5){ 
         // We can make the shot!
         moveRobot(0, 0, 1);
-        if (moveAlong == 0 || abs(shootLeft.GetEncoder().GetVelocity() - shootingPower*-1) > 100  || abs(shootRight.GetEncoder().GetVelocity() - shootingPower) > 75 ) { 
+        if (moveAlong == 0 || abs(shootLeft.GetEncoder().GetVelocity() - shootingPower*-1) > 50  || abs(shootRight.GetEncoder().GetVelocity() - shootingPower) > 50 ) { 
           // remove other velocities from the balls or wait for speed to go full
           moveAlong = 3;
           convey.Set(ControlMode::PercentOutput, 0);
