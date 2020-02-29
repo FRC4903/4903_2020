@@ -73,7 +73,6 @@ class Robot : public frc::TimedRobot {
   bool isShooting = false;
   
 
-
   int wantedSpot[2] = {};
   bool pathwayExists = false;
 
@@ -112,17 +111,15 @@ class Robot : public frc::TimedRobot {
 
   // ================== During Teleop period ==================
   void TeleopPeriodic() override {
-    if (m_stick.GetRawButtonPressed(2)){
+    updatePosition(); // update our current position
+    if (m_stick.GetRawButtonPressed(3)){
       isShooting = !isShooting;
     }
+    
     if (isShooting){
       autoShoot();
       return ;
-
     }  
-    
-    reverse=m_stick.GetRawButton(5);
-    updatePosition(); // update our current position
 
     // check if we're forced to follow a path
     if (pathwayExists){
@@ -133,13 +130,13 @@ class Robot : public frc::TimedRobot {
 
     if (!pathwayExists){
       // arcade drive
-      float j_x = m_stick.GetRawAxis(4);
+      float j_x = m_stick.GetRawAxis(4); // 1 becomes -1, 0 becomes 1
       float j_y = m_stick.GetRawAxis(1);
       float mod = 0.75f; 
-      moveRobot(j_x, j_y, mod);
+      moveRobot(m_stick.GetRawButton(10) ? j_x*-1 : j_x*-1, m_stick.GetRawButton(9) ? j_y * -1 : j_y, mod);
     }
     
-    // setting intake speed
+    // setting intake speed from co-pilot
     double wantIntake = (m_stick2.GetRawButton(1)-m_stick2.GetRawButton(3)) * -0.5; 
     intake.Set(ControlMode::PercentOutput, wantIntake);
 
@@ -147,26 +144,18 @@ class Robot : public frc::TimedRobot {
     convey.Set(ControlMode::PercentOutput,wantConvey);
 
     // setting climb
-    //float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
-    //climbLeft.Set(ControlMode::PercentOutput, wantedClimbL);
+    float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
+    climbLeft.Set(ControlMode::PercentOutput, wantedClimbL);
 
-    //float wantedClimbR = (m_stick.GetRawAxis(3) - m_stick.GetRawButton(6)) * 0.3;
-    //climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
+    float wantedClimbR = (m_stick.GetRawAxis(3) - m_stick.GetRawButton(6)) * 0.3;
+    climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
 
     // setting tilt
-    float wantedTilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * 0.75;
+    float wantedTilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(2)) * 0.75;
     if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt<0)||!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt>0)){
-      
+
     }
-    tilt.Set(ControlMode::PercentOutput, wantedTilt);
-    
-
-
-    //shooters for now
-    float wantedShoot = m_stick.GetRawAxis(2) * 0.75;
-    shootRight.Set(wantedShoot);
-    shootLeft.Set(wantedShoot*-1);
-    
+    tilt.Set(ControlMode::PercentOutput, wantedTilt);    
     cout<<tiltEncoder.GetDistance()<<endl;
   }
 
