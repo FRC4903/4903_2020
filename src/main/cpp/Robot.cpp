@@ -31,6 +31,7 @@ class Robot : public frc::TimedRobot {
   rev::CANSparkMax shootLeft{12, rev::CANSparkMax::MotorType::kBrushless};
   //joystick
   frc::Joystick m_stick{0};
+  frc::Joystick m_stick2{1};
   // talons
   TalonSRX intake;
   TalonSRX convey;
@@ -66,8 +67,11 @@ class Robot : public frc::TimedRobot {
   float oldSL = 0;
   float oldSR = 0;
   double originalAngle = -1;
-  double tiltMax=10000;
-  double tiltMin=-10000;
+  double tiltMax=67562;
+  double tiltMin=-100000;
+  bool reverse;
+  bool isShooting = false;
+  
 
 
   int wantedSpot[2] = {};
@@ -107,63 +111,62 @@ class Robot : public frc::TimedRobot {
   }
 
   // ================== During Teleop period ==================
-  bool isShooting = false;
-  void TeleopPeriodic() override {  
-    updatePosition(); // update our current position
+  void TeleopPeriodic() override {
     if (m_stick.GetRawButtonPressed(2)){
       isShooting = !isShooting;
     }
-
     if (isShooting){
       autoShoot();
+      return ;
+
+    }  
+    
+    reverse=m_stick.GetRawButton(5);
+    updatePosition(); // update our current position
+
+    // check if we're forced to follow a path
+    if (pathwayExists){
+      followPath();
     }else{
-      // check if we're forced to follow a path
-      if (pathwayExists){
-        followPath();
-      }else{
-        makePath();
-      }
-
-      if (!pathwayExists){
-        // arcade drive
-        float j_x = m_stick.GetRawAxis(4);
-        float j_y = m_stick.GetRawAxis(1);
-        float mod = 0.75f; 
-        moveRobot(j_x, j_y, mod);
-      }
-
-      if (!pathwayExists){
-        // arcade drive
-        float j_x = m_stick.GetRawAxis(4);
-        float j_y = m_stick.GetRawAxis(1);
-        float mod = 0.75f; 
-        moveRobot(j_x, j_y, mod);
-      }
-      
-      // setting intake speed
-      double wantIntake = m_stick.GetRawAxis(3) * -0.5; 
-      intake.Set(ControlMode::PercentOutput, wantIntake);
-
-      bool wantConvey = m_stick.GetRawButton(1);
-      convey.Set(ControlMode::PercentOutput, wantConvey ? 0.35 : 0);
-
-      // setting climb
-      //float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
-      //climbLeft.Set(ControlMode::PercentOutput, wantedClimbL);
-
-      //float wantedClimbR = (m_stick.GetRawAxis(3) - m_stick.GetRawButton(6)) * 0.3;
-      //climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
-
-      // setting tilt
-      float wantedtilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * 0.55;
-      tilt.Set(ControlMode::PercentOutput, wantedtilt);
-
-      //shooters for now
-      float wantedShoot = m_stick.GetRawAxis(2) * 0.5;
-      shootRight.Set(wantedShoot);
-      shootLeft.Set(wantedShoot*-1);
+      makePath();
     }
 
+    if (!pathwayExists){
+      // arcade drive
+      float j_x = m_stick.GetRawAxis(4);
+      float j_y = m_stick.GetRawAxis(1);
+      float mod = 0.75f; 
+      moveRobot(j_x, j_y, mod);
+    }
+    
+    // setting intake speed
+    double wantIntake = (m_stick2.GetRawButton(1)-m_stick2.GetRawButton(3)) * -0.5; 
+    intake.Set(ControlMode::PercentOutput, wantIntake);
+
+    double wantConvey = -m_stick2.GetRawAxis(1)*0.4;
+    convey.Set(ControlMode::PercentOutput,wantConvey);
+
+    // setting climb
+    //float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
+    //climbLeft.Set(ControlMode::PercentOutput, wantedClimbL);
+
+    //float wantedClimbR = (m_stick.GetRawAxis(3) - m_stick.GetRawButton(6)) * 0.3;
+    //climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
+
+    // setting tilt
+    float wantedTilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(3)) * 0.75;
+    if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt<0)||!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt>0)){
+      
+    }
+    tilt.Set(ControlMode::PercentOutput, wantedTilt);
+    
+
+
+    //shooters for now
+    float wantedShoot = m_stick.GetRawAxis(2) * 0.75;
+    shootRight.Set(wantedShoot);
+    shootLeft.Set(wantedShoot*-1);
+    
     cout<<tiltEncoder.GetDistance()<<endl;
   }
 
@@ -207,13 +210,13 @@ class Robot : public frc::TimedRobot {
 
     gameTimer -> Start();
     gameTimer -> Reset();
-    isShooting = false;
 
     ahrs -> ResetDisplacement();
     originalAngle = ahrs -> GetAngle();
 
     startX = pythonTable->GetEntry("StartingX").GetDouble(0);
     startY = pythonTable->GetEntry("StartingY").GetDouble(0);
+    
   } 
 
   void moveRobot(float j_x, float j_y, float mod){ // movement functions
