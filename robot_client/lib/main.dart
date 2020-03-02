@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Robot Client',channel: Socket.connect('localhost', 5050)
+      home: MyHomePage(title: 'Robot Client',channel: Socket.connect('localhost', 8888)
       ),
 
     );
