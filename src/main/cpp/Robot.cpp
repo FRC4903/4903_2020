@@ -81,6 +81,8 @@ class Robot : public TimedRobot {
   bool isShooting = false;
   int wantedSpot[2] = {};
   bool pathwayExists = false;
+  double const moveConvey = -2000;
+  double wantedConveyPos = 0;
 
   // Robot class intializing 
   Robot(): 
@@ -146,6 +148,16 @@ class Robot : public TimedRobot {
       makePath();
     }
 
+    // smart conveyer belt
+    if (abs(wantedConveyPos) > abs(conveyEncoder.GetDistance())){ // we want to get to a certain position
+      convey.Set(ControlMode::PercentOutput, 0.5f);
+    }else{ // don't move conveyer, check if you should start
+      convey.Set(ControlMode::PercentOutput, 0);
+      if (bottomBall.GetVoltage() > 2){
+        wantedConveyPos = conveyEncoder.GetDistance() + moveConvey;
+      }
+    }
+
     // arcade drive
     if (!pathwayExists){
       float j_x = m_stick.GetRawAxis(4);
@@ -155,8 +167,8 @@ class Robot : public TimedRobot {
     }
     
     // setting intake speed from co-pilot
-    double wantIntake = (m_stick2.GetRawButton(1)-m_stick2.GetRawButton(3)) * -0.5; 
-    intake.Set(ControlMode::PercentOutput, wantIntake);
+    double wantIntake = (m_stick2.GetRawButton(1) - m_stick2.GetRawButton(3)) * -0.5; 
+    intake.Set(ControlMode::PercentOutput, -0.5); //wantIntake);
 
     double wantConvey = -m_stick2.GetRawAxis(1)*0.4;
     convey.Set(ControlMode::PercentOutput,wantConvey);
@@ -179,12 +191,9 @@ class Robot : public TimedRobot {
 
 
   // ================== Autonomous Period ==================
-  float moveConvey = 200;
   void AutonomousPeriodic() override{
     updatePosition();
-    cout <<bottomBall.GetVoltage() << ", Conveyer :" << conveyEncoder.GetDistance() << endl;
-    convey.Set(ControlMode::PercentOutput, 0.2);
-
+    
     /*
     if (gameTimer ->Get() > 12.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
       moveRobot(0, -1, -0.2f);
