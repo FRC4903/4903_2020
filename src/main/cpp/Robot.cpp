@@ -39,6 +39,7 @@ class Robot : public frc::TimedRobot {
   TalonSRX climbLeft;
   TalonSRX climbRight;
 
+
   //encoders
   frc::Encoder tiltEncoder;
 
@@ -70,7 +71,9 @@ class Robot : public frc::TimedRobot {
   double tiltMax=50000;
   double tiltMin=-130000;
   bool reverse;
+  bool autoTilting;
   bool isShooting = false;
+
   
 
   int wantedSpot[2] = {};
@@ -101,7 +104,6 @@ class Robot : public frc::TimedRobot {
   
   // ================== Initialization periods ==================
   void TeleopInit() override{
-    tiltEncoder.Reset();
     
     initialize();
   }
@@ -161,8 +163,16 @@ class Robot : public frc::TimedRobot {
     if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt>0)&&!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt<0)){
       tilt.Set(ControlMode::PercentOutput, wantedTilt); 
     }
+    int wantedAutoTilt=m_stick2.GetPOV();
+    switch(wantedAutoTilt){
+      case 90:break;
+      case 180:break;
+      case 0:break;
+
+    }
+
        
-    cout<<tiltEncoder.GetDistance()<<endl;
+    cout<<"gd "<<tiltEncoder.GetDistancePerPulse()<<" g "<<tiltEncoder.Get()<<endl;
   }
 
 
