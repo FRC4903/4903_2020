@@ -76,8 +76,8 @@ class Robot : public TimedRobot {
   float oldSL = 0;
   float oldSR = 0;
   double originalAngle = -1;
-  double tiltMax=50000;
-  double tiltMin=-130000;
+  double tiltMax=40000;
+  double tiltMin=-115000;
   bool reverse;
   bool autoTilting;
   bool isShooting = false;
@@ -198,18 +198,19 @@ class Robot : public TimedRobot {
     if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt>0)&&!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt<0)){
       tilt.Set(ControlMode::PercentOutput, wantedTilt); 
     }
+
+    cout << tiltEncoder.GetDistance() << endl;
   }
 
   // ================== Autonomous Period ==================
   void AutonomousPeriodic() override{
     updatePosition();
-    if (gameTimer ->Get() > 12.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
+    if (gameTimer ->Get() > 10.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
       moveRobot(0, -1, -0.2f);
       cout<< ahrs -> GetDisplacementX() << " " << ahrs -> GetDisplacementY() << " " << ahrs ->GetDisplacementZ() << endl;
     }else{
       autoShoot();
     }
-    
   }
 
   // ================== Functions ==================
@@ -326,11 +327,11 @@ class Robot : public TimedRobot {
     double targetArea = frontLL->GetNumber("ta",0.0);
     double m = 3 - targetArea;
     
-    double xOffsetWanted = -4.00;
-    double angleAllowedX = 1.5;
     double angleAllowedY = 1.5;
-    double yOffsetWanted = (m >= 2 ? -16 : -9.00);
-    double shootingPower = (m >= 2 ? 5700*m/2.95 : 2675*m); ; // ta of ~2; 2675 // ta of 0.500 needs 5500 and y to be -16
+    double angleAllowedX = (m >= 2 ? 1.5 : 4.5); 
+    double xOffsetWanted = (m >= 2 ? -4.00 : 0.00);
+    double yOffsetWanted = (m >= 2 ? -16 : -14); //(m >= 2 ? -16 : -9.00);
+    double shootingPower = (m >= 2 ? 5700*m/2.95 : 2800); //2675*m); ; // ta of ~2; 2675 // ta of 0.500 needs 5500 and y to be -16
     
     double targetOffsetAngle_Horizontal = frontLL->GetNumber("tx",0.0) - xOffsetWanted;
     double targetOffsetAngle_Vertical = frontLL->GetNumber("ty",0.0) - yOffsetWanted;
@@ -352,7 +353,7 @@ class Robot : public TimedRobot {
       if (abs(targetOffsetAngle_Vertical) < angleAllowedY || canMake > 5){ 
         // We can make the shot!
         moveRobot(0, 0, 1);
-        if (moveAlong == 0 || abs(shootLeft.GetEncoder().GetVelocity() - shootingPower*-1) > 50  || abs(shootRight.GetEncoder().GetVelocity() - shootingPower) > 50 ) { 
+        if (moveAlong == 0 || abs(shootLeft.GetEncoder().GetVelocity() - shootingPower*-1) > 100  || abs(shootRight.GetEncoder().GetVelocity() - shootingPower) > 100 ) { 
           // remove other velocities from the balls or wait for speed to go full
           moveAlong = 3;
           convey.Set(ControlMode::PercentOutput, 0);
