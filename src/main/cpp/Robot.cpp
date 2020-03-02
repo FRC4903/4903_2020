@@ -28,9 +28,9 @@ class Robot : public TimedRobot {
   CANSparkMax backLeft{2, CANSparkMax::MotorType::kBrushless};
   CANSparkMax frontRight{3, CANSparkMax::MotorType::kBrushless};
   CANSparkMax backRight{4, CANSparkMax::MotorType::kBrushless};
-  CANSparkMax sliding{8, CANSparkMax::MotorType::kBrushless};
   CANSparkMax shootRight{9, CANSparkMax::MotorType::kBrushless};
-  CANSparkMax shootLeft{12, CANSparkMax::MotorType::kBrushless};
+  CANSparkMax shootLeft{8, CANSparkMax::MotorType::kBrushless};
+  //CANSparkMax sliding{12, CANSparkMax::MotorType::kBrushless};
 
   //joystick
   Joystick m_stick{0};
@@ -57,7 +57,7 @@ class Robot : public TimedRobot {
   CANPIDController m_pidBR= backRight.GetPIDController();
   CANPIDController m_pidSL= shootLeft.GetPIDController();
   CANPIDController m_pidSR= shootRight.GetPIDController();
-  CANPIDController m_pidSlid = sliding.GetPIDController();
+  //CANPIDController m_pidSlid = sliding.GetPIDController();
   
   //network tables
   shared_ptr<NetworkTable> pythonTable = nt::NetworkTableInstance::GetDefault().GetTable("realTimeDB");
@@ -81,7 +81,7 @@ class Robot : public TimedRobot {
   bool isShooting = false;
   int wantedSpot[2] = {};
   bool pathwayExists = false;
-  double const moveConvey = -2000;
+  double const moveConvey = -1000;
   double wantedConveyPos = 0;
 
   // Robot class intializing 
@@ -91,7 +91,7 @@ class Robot : public TimedRobot {
     tilt(7),
     climbLeft(10),
     climbRight(11),
-    tiltEncoder(8,9),
+    tiltEncoder(8, 9),
     conveyEncoder(6, 7),
     bottomBall(0)
   {
@@ -168,10 +168,10 @@ class Robot : public TimedRobot {
     
     // setting intake speed from co-pilot
     double wantIntake = (m_stick2.GetRawButton(1) - m_stick2.GetRawButton(3)) * -0.5; 
-    intake.Set(ControlMode::PercentOutput, -0.5); //wantIntake);
+    intake.Set(ControlMode::PercentOutput, -0.25 ); //wantIntake); //-0.25)
 
     double wantConvey = -m_stick2.GetRawAxis(1)*0.4;
-    convey.Set(ControlMode::PercentOutput,wantConvey);
+    //convey.Set(ControlMode::PercentOutput,wantConvey);
 
     // setting climb
     float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
@@ -194,15 +194,12 @@ class Robot : public TimedRobot {
   void AutonomousPeriodic() override{
     updatePosition();
     
-    /*
     if (gameTimer ->Get() > 12.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
       moveRobot(0, -1, -0.2f);
       cout<< ahrs -> GetDisplacementX() << " " << ahrs -> GetDisplacementY() << " " << ahrs ->GetDisplacementZ() << endl;
     }else{
       autoShoot();
     }
-    */
-
   }
 
   // ================== Functions ==================
@@ -213,7 +210,7 @@ class Robot : public TimedRobot {
     InitializePID(m_pidBR);
     InitializePID(m_pidSL, true);
     InitializePID(m_pidSR, true);
-    InitializePID(m_pidSlid, true);
+    //InitializePID(m_pidSlid, true);
 
     frontLeft.Set(0);
     frontRight.Set(0);
@@ -221,7 +218,7 @@ class Robot : public TimedRobot {
     backRight.Set(0);
     shootLeft.Set(0);
     shootRight.Set(0);
-    sliding.Set(0);
+    //sliding.Set(0);
 
     intake.Set(ControlMode::PercentOutput, 0);
     convey.Set(ControlMode::PercentOutput, 0);
