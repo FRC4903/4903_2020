@@ -114,8 +114,8 @@ class Robot : public TimedRobot {
     conveyEncoder.Reset();
     ahrs -> ResetDisplacement();
     originalAngle = ahrs -> GetAngle();
-    startX = pythonTable->GetEntry("StartingX").GetDouble(0);
-    startY = pythonTable->GetEntry("StartingY").GetDouble(0);
+    startX = pythonTable->GetEntry("startX").GetDouble(0);
+    startY = pythonTable->GetEntry("startY").GetDouble(0);
   }
   
   // ================== Initialization periods ==================
@@ -169,7 +169,7 @@ class Robot : public TimedRobot {
     }
     
     // setting intake speed from co-pilot
-    double wantIntake = (m_stick2.GetRawButton(1) - m_stick2.GetRawButton(3)) * -0.5; 
+    double wantIntake = (m_stick2.GetRawAxis(3)) * -0.5; 
     intake.Set(ControlMode::PercentOutput, -0.25 ); //wantIntake); //-0.25)
 
     double wantConvey = -m_stick2.GetRawAxis(1)*0.4;
@@ -269,12 +269,9 @@ class Robot : public TimedRobot {
   }
 
   void updatePosition(){ // update our position and let pygame know where we are
-    nt::NetworkTableEntry offsetX = pythonTable->GetEntry("deltaX");
-    nt::NetworkTableEntry offsetY = pythonTable->GetEntry("deltaY");
-    nt::NetworkTableEntry offsetAngle = pythonTable->GetEntry("angle");
-    offsetX.SetDouble(ahrs -> GetDisplacementX());
-    offsetY.SetDouble(ahrs -> GetDisplacementZ());
-    offsetAngle.SetDouble(ahrs -> GetAngle() - originalAngle);    
+    pythonTable->GetEntry("deltaX").SetDouble(ahrs -> GetDisplacementX());
+    pythonTable->GetEntry("deltaY").SetDouble(ahrs -> GetDisplacementZ());
+    pythonTable->GetEntry("angle").SetDouble(ahrs -> GetAngle() - originalAngle);
   }
 
   void makePath(){ // check if we need to make a path
