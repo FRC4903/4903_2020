@@ -8,6 +8,7 @@
 #include <frc/SmartDashboard/SmartDashboard.h>
 #include "AHRS.h"
 #include <chrono>
+#include "frc/AnalogInput.h"
 #include <networktables/NetworkTable.h>
 #include <networktables/NetworkTableInstance.h>
 #include <frc/geometry/Rotation2d.h>
@@ -17,21 +18,24 @@
 #include <frc/Encoder.h>
 using namespace std;
 using namespace frc;
+using namespace rev;
 
-class Robot : public frc::TimedRobot {
+class Robot : public TimedRobot {
  public:
   // ================== defining public variables ==================
   // neo motors
-  rev::CANSparkMax frontLeft{1, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax backLeft{2, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax frontRight{3, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax backRight{4, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax sliding{8, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax shootRight{9, rev::CANSparkMax::MotorType::kBrushless};
-  rev::CANSparkMax shootLeft{12, rev::CANSparkMax::MotorType::kBrushless};
+  CANSparkMax frontLeft{1, CANSparkMax::MotorType::kBrushless};
+  CANSparkMax backLeft{2, CANSparkMax::MotorType::kBrushless};
+  CANSparkMax frontRight{3, CANSparkMax::MotorType::kBrushless};
+  CANSparkMax backRight{4, CANSparkMax::MotorType::kBrushless};
+  CANSparkMax shootRight{9, CANSparkMax::MotorType::kBrushless};
+  CANSparkMax shootLeft{8, CANSparkMax::MotorType::kBrushless};
+  //CANSparkMax sliding{12, CANSparkMax::MotorType::kBrushless};
+
   //joystick
-  frc::Joystick m_stick{0};
-  frc::Joystick m_stick2{1};
+  Joystick m_stick{0};
+  Joystick m_stick2{1};
+
   // talons
   TalonSRX intake;
   TalonSRX convey;
@@ -39,17 +43,22 @@ class Robot : public frc::TimedRobot {
   TalonSRX climbLeft;
   TalonSRX climbRight;
 
-  //encoders
-  frc::Encoder tiltEncoder;
 
+  //encoders
+  Encoder tiltEncoder;
+  Encoder conveyEncoder;
+
+  // inductive sensors 
+  AnalogInput bottomBall;
+  
   // PID controllers for the neo motors
-  rev::CANPIDController m_pidFL= frontLeft.GetPIDController();
-  rev::CANPIDController m_pidBL= backLeft.GetPIDController();
-  rev::CANPIDController m_pidFR= frontRight.GetPIDController();
-  rev::CANPIDController m_pidBR= backRight.GetPIDController();
-  rev::CANPIDController m_pidSL= shootLeft.GetPIDController();
-  rev::CANPIDController m_pidSR= shootRight.GetPIDController();
-  rev::CANPIDController m_pidSlid = sliding.GetPIDController();
+  CANPIDController m_pidFL= frontLeft.GetPIDController();
+  CANPIDController m_pidBL= backLeft.GetPIDController();
+  CANPIDController m_pidFR= frontRight.GetPIDController();
+  CANPIDController m_pidBR= backRight.GetPIDController();
+  CANPIDController m_pidSL= shootLeft.GetPIDController();
+  CANPIDController m_pidSR= shootRight.GetPIDController();
+  //CANPIDController m_pidSlid = sliding.GetPIDController();
   
   //network tables
   shared_ptr<NetworkTable> pythonTable = nt::NetworkTableInstance::GetDefault().GetTable("realTimeDB");
@@ -70,11 +79,12 @@ class Robot : public frc::TimedRobot {
   double tiltMax=50000;
   double tiltMin=-130000;
   bool reverse;
+  bool autoTilting;
   bool isShooting = false;
-  
-
   int wantedSpot[2] = {};
   bool pathwayExists = false;
+  double const moveConvey = -1000;
+  double wantedConveyPos = 0;
 
   // Robot class intializing 
   Robot(): 
@@ -83,26 +93,33 @@ class Robot : public frc::TimedRobot {
     tilt(7),
     climbLeft(10),
     climbRight(11),
-    tiltEncoder(8,9)
+    tiltEncoder(8, 9),
+    conveyEncoder(6, 7),
+    bottomBall(0)
   {
+    // set up navx
     try {
-            /* Communicate w/navX-MXP via the MXP SPI Bus.                                       */
-            /* Alternatively:  I2C::Port::kMXP, SerialPort::Port::kMXP or SerialPort::Port::kUSB */
-            /* See http://navx-mxp.kauailabs.com/guidance/selecting-an-interface/ for details.   */
-            ahrs = new AHRS(SPI::Port::kMXP);
-        } catch (std::exception ex ) {
-            std::string err_string = "Error instantiating navX-MXP:  ";
-            err_string += ex.what();
-        }
-    ahrs->ZeroYaw();
-    intake.SetNeutralMode(NeutralMode::Brake);
-    intake.Set(ControlMode::PercentOutput, 0);
+        /* Communicate w/navX-MXP via the MXP SPI Bus.                                       */
+        /* Alternatively:  I2C::Port::kMXP, SerialPort::Port::kMXP or SerialPort::Port::kUSB */
+        /* See http://navx-mxp.kauailabs.com/guidance/selecting-an-interface/ for details.   */
+        ahrs = new AHRS(SPI::Port::kMXP);
+    } catch (exception ex ) {
+        string err_string = "Error instantiating navX-MXP:  ";
+        err_string += ex.what();
+    }
+
+    // reset variables that need to be reset only once, not during each init()
+    ahrs->ZeroYaw();    
+    tiltEncoder.Reset();
+    conveyEncoder.Reset();
+    ahrs -> ResetDisplacement();
+    originalAngle = ahrs -> GetAngle();
+    startX = pythonTable->GetEntry("StartingX").GetDouble(0);
+    startY = pythonTable->GetEntry("StartingY").GetDouble(0);
   }
   
   // ================== Initialization periods ==================
-  void TeleopInit() override{
-    tiltEncoder.Reset();
-    
+  void TeleopInit() override{    
     initialize();
   }
   
@@ -112,7 +129,6 @@ class Robot : public frc::TimedRobot {
 
   // ================== During Teleop period ==================
   void TeleopPeriodic() override {
-    
     // update our current position
     updatePosition(); 
 
@@ -134,6 +150,16 @@ class Robot : public frc::TimedRobot {
       makePath();
     }
 
+    // smart conveyer belt
+    if (abs(wantedConveyPos) > abs(conveyEncoder.GetDistance())){ // we want to get to a certain position
+      convey.Set(ControlMode::PercentOutput, 0.5f);
+    }else{ // don't move conveyer, check if you should start
+      convey.Set(ControlMode::PercentOutput, 0);
+      if (bottomBall.GetVoltage() > 2){
+        wantedConveyPos = conveyEncoder.GetDistance() + moveConvey;
+      }
+    }
+
     // arcade drive
     if (!pathwayExists){
       float j_x = m_stick.GetRawAxis(4);
@@ -143,11 +169,11 @@ class Robot : public frc::TimedRobot {
     }
     
     // setting intake speed from co-pilot
-    double wantIntake = (m_stick2.GetRawButton(1)-m_stick2.GetRawButton(3)) * -0.5; 
-    intake.Set(ControlMode::PercentOutput, wantIntake);
+    double wantIntake = (m_stick2.GetRawButton(1) - m_stick2.GetRawButton(3)) * -0.5; 
+    intake.Set(ControlMode::PercentOutput, -0.25 ); //wantIntake); //-0.25)
 
     double wantConvey = -m_stick2.GetRawAxis(1)*0.4;
-    convey.Set(ControlMode::PercentOutput,wantConvey);
+    //convey.Set(ControlMode::PercentOutput,wantConvey);
 
     // setting climb
     float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.3;
@@ -161,14 +187,23 @@ class Robot : public frc::TimedRobot {
     if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt>0)&&!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt<0)){
       tilt.Set(ControlMode::PercentOutput, wantedTilt); 
     }
+    int wantedAutoTilt=m_stick2.GetPOV();
+    switch(wantedAutoTilt){
+      case 90:break;
+      case 180:break;
+      case 0:break;
+
+    }
+
        
-    cout<<tiltEncoder.GetDistance()<<endl;
+    cout<<"gd "<<tiltEncoder.GetDistancePerPulse()<<" g "<<tiltEncoder.Get()<<endl;
   }
 
 
   // ================== Autonomous Period ==================
   void AutonomousPeriodic() override{
     updatePosition();
+    
     if (gameTimer ->Get() > 12.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
       moveRobot(0, -1, -0.2f);
       cout<< ahrs -> GetDisplacementX() << " " << ahrs -> GetDisplacementY() << " " << ahrs ->GetDisplacementZ() << endl;
@@ -185,7 +220,7 @@ class Robot : public frc::TimedRobot {
     InitializePID(m_pidBR);
     InitializePID(m_pidSL, true);
     InitializePID(m_pidSR, true);
-    InitializePID(m_pidSlid, true);
+    //InitializePID(m_pidSlid, true);
 
     frontLeft.Set(0);
     frontRight.Set(0);
@@ -193,7 +228,7 @@ class Robot : public frc::TimedRobot {
     backRight.Set(0);
     shootLeft.Set(0);
     shootRight.Set(0);
-    sliding.Set(0);
+    //sliding.Set(0);
 
     intake.Set(ControlMode::PercentOutput, 0);
     convey.Set(ControlMode::PercentOutput, 0);
@@ -206,14 +241,7 @@ class Robot : public frc::TimedRobot {
 
     gameTimer -> Start();
     gameTimer -> Reset();
-
-    ahrs -> ResetDisplacement();
-    originalAngle = ahrs -> GetAngle();
     isShooting = false;
-
-    startX = pythonTable->GetEntry("StartingX").GetDouble(0);
-    startY = pythonTable->GetEntry("StartingY").GetDouble(0);
-    
   } 
 
   void moveRobot(float j_x, float j_y, float mod){ // movement functions
@@ -308,8 +336,8 @@ class Robot : public frc::TimedRobot {
     double targetArea = frontLL->GetNumber("ta",0.0);
 
     // shooting at all times because it takes time to get to correst speed
-    m_pidSL.SetReference(shootingPower * -1, rev::ControlType::kVelocity);
-    m_pidSR.SetReference(shootingPower, rev::ControlType::kVelocity);
+    m_pidSL.SetReference(shootingPower * -1, ControlType::kVelocity);
+    m_pidSR.SetReference(shootingPower, ControlType::kVelocity);
 
     cout<< "Y value: " << targetOffsetAngle_Vertical << " and area of " << targetArea << " with shooter speeds of "
       << shootLeft.GetEncoder().GetVelocity() << " " << shootRight.GetEncoder().GetVelocity() << endl;
@@ -374,15 +402,15 @@ class Robot : public frc::TimedRobot {
   }
 
   // checks for any changes in voltage stuff, just run this function and don't question it
-  void PIDCoefficients(rev::CANPIDController& m_pidController){
+  void PIDCoefficients(CANPIDController& m_pidController){
     // read PID coefficients from SmartDashboard
-    double p = frc::SmartDashboard::GetNumber("P Gain", 0);
-    double i = frc::SmartDashboard::GetNumber("I Gain", 0);
-    double d = frc::SmartDashboard::GetNumber("D Gain", 0);
-    double iz = frc::SmartDashboard::GetNumber("I Zone", 0);
-    double ff = frc::SmartDashboard::GetNumber("Feed Forward", 0);
-    double max = frc::SmartDashboard::GetNumber("Max Output", 0);
-    double min = frc::SmartDashboard::GetNumber("Min Output", 0);
+    double p = SmartDashboard::GetNumber("P Gain", 0);
+    double i = SmartDashboard::GetNumber("I Gain", 0);
+    double d = SmartDashboard::GetNumber("D Gain", 0);
+    double iz = SmartDashboard::GetNumber("I Zone", 0);
+    double ff = SmartDashboard::GetNumber("Feed Forward", 0);
+    double max = SmartDashboard::GetNumber("Max Output", 0);
+    double min = SmartDashboard::GetNumber("Min Output", 0);
 
     // if PID coefficients on SmartDashboard have changed, write new values to controller
     if((p != kP)) { m_pidController.SetP(p); kP = p; }
@@ -396,7 +424,7 @@ class Robot : public frc::TimedRobot {
     }
   }
 
-  void InitializePID(rev::CANPIDController& m_pidController, bool isShooter = false){
+  void InitializePID(CANPIDController& m_pidController, bool isShooter = false){
     // set PID coefficients
     m_pidController.SetP(kP);
     m_pidController.SetI(kI);
@@ -409,13 +437,13 @@ class Robot : public frc::TimedRobot {
     m_pidController.SetSmartMotionMaxAccel((isShooter ? 10 : 0.01));
 
     // display PID coefficients on SmartDashboard
-    frc::SmartDashboard::PutNumber("P Gain", kP);
-    frc::SmartDashboard::PutNumber("I Gain", kI);
-    frc::SmartDashboard::PutNumber("D Gain", kD);
-    frc::SmartDashboard::PutNumber("I Zone", kIz);
-    frc::SmartDashboard::PutNumber("Feed Forward", kFF);
-    frc::SmartDashboard::PutNumber("Max Output", kMaxOutput);
-    frc::SmartDashboard::PutNumber("Min Output", kMinOutput);
+    SmartDashboard::PutNumber("P Gain", kP);
+    SmartDashboard::PutNumber("I Gain", kI);
+    SmartDashboard::PutNumber("D Gain", kD);
+    SmartDashboard::PutNumber("I Zone", kIz);
+    SmartDashboard::PutNumber("Feed Forward", kFF);
+    SmartDashboard::PutNumber("Max Output", kMaxOutput);
+    SmartDashboard::PutNumber("Min Output", kMinOutput);
   }
  
   
@@ -423,7 +451,7 @@ class Robot : public frc::TimedRobot {
 
 // needed code for frc
 #ifndef RUNNING_FRC_TESTS
-int main() { return frc::StartRobot<Robot>(); }
+int main() { return StartRobot<Robot>(); }
 #endif
 
 /* Autonomous things weève tested
@@ -451,7 +479,7 @@ int main() { return frc::StartRobot<Robot>(); }
   
   Neo Encoders:
   PIDCoeffecents(m_pidFL);
-  m_pidFL.SetReference(1500, rev::ControlType::kVelocity);
+  m_pidFL.SetReference(1500, ControlType::kVelocity);
   cout << FrontLeft.GetEncoder().GetVelocity() << endl;   
   intake.Set(ControlMode::PercentOutput, 0.5);
 
