@@ -373,12 +373,16 @@ class Robot : public TimedRobot {
     double scaledDistance = (3 - targetArea);   
     double shootingPower = 2800 + (scaledDistance - 1)*(2900/1.95); // linear propogation for power (m >= 2 ? 5750: 2850);//*m/2.95 : 2800); //2675*m); ; // ta of ~2; 2675 // ta of 0.500 needs 5500 and y to be -16
     
-    // shooting at all times because it takes time to get to correst speed
-    m_pidSL.SetReference(shootingPower * -1, ControlType::kVelocity);
-    m_pidSR.SetReference(shootingPower, ControlType::kVelocity);
+    // shooting at all times because it takes time to get to correst speed; start with set quick then force it to be accurate
+    if (shootLeft.GetEncoder().GetVelocity() < shootingPower*0.75){ shootLeft.Set(-1); }
+    else{ m_pidSL.SetReference(shootingPower * -1, ControlType::kVelocity); }
+
+    if (shootRight.GetEncoder().GetVelocity() < shootingPower*0.75){ shootRight.Set(-1); }
+    else{ m_pidSR.SetReference(shootingPower, ControlType::kVelocity); }
 
     cout<< "Shooter speeds of "  << shootLeft.GetEncoder().GetVelocity() << " " << shootRight.GetEncoder().GetVelocity() << endl;
 
+    // checking our angles now
     if (targetArea == 0 && canMake < 5) { 
       // no target and not moving onto one
       canMake = 0;
@@ -389,7 +393,7 @@ class Robot : public TimedRobot {
       if (abs(targetOffsetAngle_Vertical) < angleAllowedY || canMake > 5){ 
         // We can make the shot!
         moveRobot(0, 0, 1);
-        if (moveAlong == 0 || abs(shootLeft.GetEncoder().GetVelocity() - shootingPower*-1) > 100  || abs(shootRight.GetEncoder().GetVelocity() - shootingPower) > 100 ) { 
+        if (moveAlong == 0 || abs(shootLeft.GetEncoder().GetVelocity() - shootingPower*-1) > 75  || abs(shootRight.GetEncoder().GetVelocity() - shootingPower) > 75 ) { 
           // remove other velocities from the balls or wait for speed to go full
           moveAlong = 3;
           convey.Set(ControlMode::PercentOutput, 0);
@@ -428,7 +432,7 @@ class Robot : public TimedRobot {
           dir /= 1.5;
         }
       }
-      
+
       moveRobot(dir, 0, 1);
       canMake = 0;
       cout << "Adjusting X" << endl;
