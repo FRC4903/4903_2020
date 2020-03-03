@@ -18,7 +18,8 @@
     "ostream": "cpp",
     "chrono": "cpp",
     "limits": "cpp",
-    "random": "cpp"
+    "random": "cpp",
+    "cmath": "cpp"
   },
   "C_Cpp.default.configurationProvider": "vscode-wpilib"
 }

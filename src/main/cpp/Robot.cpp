@@ -203,9 +203,9 @@ class Robot : public TimedRobot {
     double wantIntake = (m_stick2.GetRawButton(5)-m_stick2.GetRawButton(6)) * -0.5; 
     intake.Set(ControlMode::PercentOutput, wantIntake);
     
-    double wantConvey = -m_stick2.GetRawAxis(1)*0.4; 
+    double wantConvey = -m_stick2.GetRawAxis(1) * 0.4; 
     if (abs(wantConvey) > 0.2){ // override from co-pilot
-      convey.Set(ControlMode::PercentOutput,wantConvey);
+      convey.Set(ControlMode::PercentOutput, wantConvey);
     }
 
     // setting climb
@@ -251,8 +251,8 @@ class Robot : public TimedRobot {
     // start autonomous
     updatePosition();
     intake.Set(ControlMode::PercentOutput, -0.3);
-
-    if (gameTimer ->Get() > 11.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
+    double dist = pow(pow(ahrs ->GetDisplacementX(), 2) + pow(ahrs ->GetDisplacementY(), 2) + pow(ahrs ->GetDisplacementZ(), 2), 1/2);
+    if (gameTimer ->Get() > 11.5 && dist < 2.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
       moveRobot(0, -1, -0.2f);
       cout<< ahrs -> GetDisplacementX() << " " << ahrs -> GetDisplacementY() << " " << ahrs ->GetDisplacementZ() << endl;
     }else{
