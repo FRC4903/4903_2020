@@ -69,9 +69,11 @@ class Robot : public TimedRobot {
   // gyro
   AHRS *ahrs;
 
+  // game timer
+  Timer *gameTimer = new Timer();
+
   // constants and variables
   double kP = 6e-5, kI = 1e-6, kD = 0, kIz = 0, kFF = 0.000015, kMaxOutput = 1.0, kMinOutput = -1.0; 
-  Timer *gameTimer = new Timer();
   double startX, startY;
   float accelLerp = 25;
   float oldSL = 0;
@@ -87,6 +89,13 @@ class Robot : public TimedRobot {
   double const moveConvey = -1750;
   double const deltaConvey = -50;
   double wantedConveyPos = 0;
+
+  // shooter variables
+  double accumulatedValues[2] = {};
+  int accumulationTimes = 0;
+  double areaValues[5] = {};
+  int moveAlong = 0; 
+  int canMake = 0;
 
   // Robot class intializing 
   Robot(): 
@@ -126,6 +135,9 @@ class Robot : public TimedRobot {
   }
   
   void AutonomousInit() override{
+    firstSwitch = false;
+    gameTimer -> Start();
+    gameTimer -> Reset();
     initialize();
   }
 
@@ -146,6 +158,12 @@ class Robot : public TimedRobot {
       double wantedShoot = m_stick2.GetRawAxis(3)*0.5;
       shootLeft.Set(wantedShoot *-1);
       shootRight.Set(wantedShoot);
+
+      memset(accumulatedValues, 0, 2);
+      memset(areaValues, 0, 5);    
+      accumulationTimes = 0;
+      moveAlong = 0; 
+      canMake = 0;
     }
 
     // check if we're forced to follow a path
@@ -204,10 +222,25 @@ class Robot : public TimedRobot {
   }
 
   // ================== Autonomous Period ==================
+  bool firstSwitch;
   void AutonomousPeriodic() override{
+    // switch to teleop after 15 seconds for testing
+    if (gameTimer -> Get() >= 15){
+      if (!firstSwitch){
+        firstSwitch = true;
+        TeleopInit();
+        return;
+      }
+      
+      TeleopPeriodic();
+      return;
+    }
+
+    // start autonomous
     updatePosition();
     intake.Set(ControlMode::PercentOutput, -0.3);
-    if (gameTimer ->Get() > 10.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
+
+    if (gameTimer ->Get() > 11.5){ // && pow(ahrs ->GetDisplacementZ(), 2) + pow(ahrs ->GetDisplacementZ(), 2)  > pow(1.5, 2)) {
       moveRobot(0, -1, -0.2f);
       cout<< ahrs -> GetDisplacementX() << " " << ahrs -> GetDisplacementY() << " " << ahrs ->GetDisplacementZ() << endl;
     }else{
@@ -239,12 +272,14 @@ class Robot : public TimedRobot {
     climbLeft.Set(ControlMode::PercentOutput, 0);
     climbRight.Set(ControlMode::PercentOutput, 0);
 
+    
+    memset(accumulatedValues, 0, 2);
+    memset(areaValues, 0, 5);    
+    accumulationTimes = 0;
+    carryingBalls = 0;
     moveAlong = 0; 
     canMake = 0;
-    carryingBalls = 0;
 
-    gameTimer -> Start();
-    gameTimer -> Reset();
     isShooting = false;
   } 
 
@@ -321,20 +356,20 @@ class Robot : public TimedRobot {
     }
   }
 
-  double accumulatedValues[2] = {};
-  double areaValues[5] = {};
-  int accumulationTimes = 0;
-  int moveAlong = 0; 
-  int canMake = 0;
-
   void autoShoot(){  // called to aim and shoot
-    // setting up and grabbing all the data
+    // set up shooter values so we can set exact velocities
     PIDCoefficients(m_pidSL);
     PIDCoefficients(m_pidSR);
-    double angleAllowedY = 1;
-    double angleAllowedX = 2;  
-    double xOffsetWanted = -2; // (m >= 2 ? -4.00 : 0.00);
+
+    // wanted alligments; Note; used to be -4 away and 0 infront
+    double xOffsetWanted = -2; 
     double yOffsetWanted = -16;
+
+    // error allowed
+    double angleAllowedY = 1; 
+    double angleAllowedX = 1.5;  
+
+    // get the limelight values
     double targetArea = frontLL->GetNumber("ta",0.0);
     double targetOffsetAngle_Horizontal = frontLL->GetNumber("tx",0.0) - xOffsetWanted;
     double targetOffsetAngle_Vertical = frontLL->GetNumber("ty",0.0) - yOffsetWanted;
@@ -374,10 +409,10 @@ class Robot : public TimedRobot {
     double shootingPower = 2800 + (scaledDistance - 1)*(2900/1.95); // linear propogation for power (m >= 2 ? 5750: 2850);//*m/2.95 : 2800); //2675*m); ; // ta of ~2; 2675 // ta of 0.500 needs 5500 and y to be -16
     
     // shooting at all times because it takes time to get to correst speed; start with set quick then force it to be accurate
-    if (shootLeft.GetEncoder().GetVelocity() < shootingPower*0.75){ shootLeft.Set(-1); }
+    if (abs(shootLeft.GetEncoder().GetVelocity()) < shootingPower * 0.75){ shootLeft.Set(-1); }
     else{ m_pidSL.SetReference(shootingPower * -1, ControlType::kVelocity); }
 
-    if (shootRight.GetEncoder().GetVelocity() < shootingPower*0.75){ shootRight.Set(-1); }
+    if (abs(shootRight.GetEncoder().GetVelocity() < shootingPower * 0.75)){ shootRight.Set(1); }
     else{ m_pidSR.SetReference(shootingPower, ControlType::kVelocity); }
 
     cout<< "Shooter speeds of "  << shootLeft.GetEncoder().GetVelocity() << " " << shootRight.GetEncoder().GetVelocity() << endl;
@@ -411,7 +446,7 @@ class Robot : public TimedRobot {
         cout << "Shooting" << endl;
       } else{
         // adjust the tilt
-        double dir = (int)(targetOffsetAngle_Vertical > 0)*2-1;
+        double dir = (int)(targetOffsetAngle_Vertical > 0) * 2 - 1;
         if (abs(targetOffsetAngle_Vertical) < 5){ // slow down the tilt when we're  close
           dir /= 2;
         }
