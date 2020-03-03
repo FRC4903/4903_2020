@@ -188,7 +188,6 @@ class Robot : public TimedRobot {
     // setting tilt
     float wantedTilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(2)) * 0.75;
     if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt>0)&&!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt<0)){
-      autoTilting=-1;
       tilt.Set(ControlMode::PercentOutput, wantedTilt); 
     }
     if(m_stick2.GetRawButtonPressed(1)){
@@ -200,19 +199,10 @@ class Robot : public TimedRobot {
     else if(m_stick2.GetRawButtonPressed(3)){
       autoTilting=shootTilt;
     }
-    if(autoTilting!=0){
-      autoTilt();
-    }
+    
 
        
-  }
-  void autoTilt(){
-    double tiltTolerance=5000
-    if(abs(tiltEncoder.GetDistance()-autoTilting)<tiltTolerance){
-      tilt.Set(ControlMode::PercentOutput,0.75*(tiltEncoder.GetDistance()<autoTilting?-1:1));
-    }
-
-
+    cout<<"gd "<<tiltEncoder.GetDistancePerPulse()<<" g "<<tiltEncoder.Get()<<endl;
   }
 
 
