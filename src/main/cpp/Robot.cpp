@@ -79,7 +79,10 @@ class Robot : public TimedRobot {
   double tiltMax=50000;
   double tiltMin=-130000;
   bool reverse;
-  bool autoTilting;
+  int autoTilting=-1;
+  float trenchTilt;
+  float climbTilt;
+  float shootTilt;
   bool isShooting = false;
   int wantedSpot[2] = {};
   bool pathwayExists = false;
@@ -169,7 +172,7 @@ class Robot : public TimedRobot {
     }
     
     // setting intake speed from co-pilot
-    double wantIntake = (m_stick2.GetRawAxis(3)) * -0.5; 
+    double wantIntake = (m_stick2.GetRawButton(5)-m_stick2.GetRawButton(6)) * -0.5; 
     intake.Set(ControlMode::PercentOutput, -0.25 ); //wantIntake); //-0.25)
 
     double wantConvey = -m_stick2.GetRawAxis(1)*0.4;
@@ -187,13 +190,16 @@ class Robot : public TimedRobot {
     if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt>0)&&!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt<0)){
       tilt.Set(ControlMode::PercentOutput, wantedTilt); 
     }
-    int wantedAutoTilt=m_stick2.GetPOV();
-    switch(wantedAutoTilt){
-      case 90:break;
-      case 180:break;
-      case 0:break;
-
+    if(m_stick2.GetRawButtonPressed(1)){
+      autoTilting=trenchTilt;
     }
+    else if(m_stick2.GetRawButtonPressed(2)){
+      autoTilting=climbTilt;
+    }
+    else if(m_stick2.GetRawButtonPressed(3)){
+      autoTilting=shootTilt;
+    }
+    
 
        
     cout<<"gd "<<tiltEncoder.GetDistancePerPulse()<<" g "<<tiltEncoder.Get()<<endl;
