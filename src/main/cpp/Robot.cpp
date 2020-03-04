@@ -90,15 +90,16 @@ class Robot : public TimedRobot {
   double const deltaConvey = -50;
   double wantedConveyPos = 0;
   int autoTilting=-1;
-  float trenchTilt=30000;
-  float intakeTilt=22000;
-  double tiltTol=3000;
+  float trenchTilt = 30000;
+  float intakeTilt = 22000;
+  double tiltTol = 3000;
   int tiltPositions[3] = {trenchTilt, intakeTilt, 0};
   double accumulatedValues[2] = {};
   int accumulationTimes = 0;
   double areaValues[5] = {};
   int moveAlong = 0; 
   int canMake = 0;
+  bool climbMode = false;
   
   // Robot class intializing 
   Robot(): 
@@ -191,12 +192,12 @@ class Robot : public TimedRobot {
     if (!pathwayExists){
       float j_x = m_stick.GetRawAxis(4);
       float j_y = m_stick.GetRawAxis(1);
-      float mod = (m_stick.GetRawAxis(3) > 0.2 ? 0.9 : 0.6) * (m_stick.GetRawButton(5) ? -1 : 1); 
+      float mod = ((m_stick.GetRawAxis(3) > 0.2 && !climbMode) ? 0.9 : 0.6) * ((m_stick.GetRawButton(5) && !climbMode) ? -1 : 1); 
       moveRobot(j_x, j_y, mod);
     }
     
     // setting intake speed from both pilot and co-pilot
-    double wantIntake = ((m_stick.GetRawButton(6) || m_stick2.GetRawButton(5)) - m_stick2.GetRawButton(6)) * -0.5; 
+    double wantIntake = ((m_stick.GetRawButton(6) && !climbMode || m_stick2.GetRawButton(5)) - m_stick2.GetRawButton(6)) * -0.5; 
     intake.Set(ControlMode::PercentOutput, wantIntake);
     
     // setting conveyer override
@@ -205,15 +206,19 @@ class Robot : public TimedRobot {
       convey.Set(ControlMode::PercentOutput, wantConvey);
     }
 
-    if (m_stick.GetPOV() == 0 || m_stick.GetPOV() == 180){ // pilot
-      int dir = m_stick.GetPOV() == 0 ? 1 : -1;
-      climbLeft.Set(ControlMode::PercentOutput, 0.75 * dir);
-      climbRight.Set(ControlMode::PercentOutput, -0.75 * dir);
+    // climb controls
+    if (m_stick.GetRawButtonPressed(1)){ climbMode = !climbMode;}
+    if (climbMode){ // pilot gets control for climb
+      double dirL = 0.65 * (m_stick.GetRawButton(5) - m_stick.GetRawAxis(2));
+      double dirR = -0.65 * (m_stick.GetRawButton(6) - m_stick.GetRawAxis(3));
+
+      climbLeft.Set(ControlMode::PercentOutput, dirL);
+      climbRight.Set(ControlMode::PercentOutput, dirR);
 
     }else{ // co-pilot manual controls
       int dir = m_stick2.GetRawButton(1) ? 1 : -1;
-      climbLeft.Set(ControlMode::PercentOutput, m_stick.GetRawButton(7) * 0.5 * dir);
-      climbRight.Set(ControlMode::PercentOutput, m_stick.GetRawButton(8) * -0.5 * dir);
+      climbLeft.Set(ControlMode::PercentOutput, m_stick2.GetRawButton(7) * 0.5 * dir);
+      climbRight.Set(ControlMode::PercentOutput, m_stick2.GetRawButton(8) * -0.5 * dir);
     }
 
     // setting tilt 
@@ -227,14 +232,7 @@ class Robot : public TimedRobot {
         }
       }
     }
-
-    // setting climb
-    float wantedClimbL = (m_stick.GetRawAxis(2) - m_stick.GetRawButton(5)) * 0.65;
-    climbLeft.Set(ControlMode::PercentOutput, wantedClimbL);
-
-    float wantedClimbR = (m_stick.GetRawAxis(3) - m_stick.GetRawButton(6)) * 0.65;
-    climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
-
+    
     // setting tilt
     Tilting();
   }
@@ -302,6 +300,7 @@ class Robot : public TimedRobot {
     canMake = 0;
 
     isShooting = false;
+    climbMode = false;
   } 
 
   void moveRobot(float j_x, float j_y, float mod){ // movement functions
@@ -393,10 +392,15 @@ class Robot : public TimedRobot {
     }
   }
   void Tilting(){
-    float wantedTilt = (m_stick2.GetPOV()==0-m_stick2.GetPOV()==180) * 0.75;
+    float wantedTilt = ((m_stick2.GetPOV()==0 || m_stick2.GetPOV()==45 || m_stick2.GetPOV()==315) 
+    - (m_stick2.GetPOV()==180 || m_stick2.GetPOV()==135 || m_stick2.GetPOV()==225)) * 0.75;
+
+    cout << "Wanted tilt is " << wantedTilt << " with tilting constants as " <<  (m_stick2.GetPOV()==0) << (m_stick2.GetPOV()==180) << endl;
+
     if(wantedTilt!=0){
       autoTilting=-1;
     }
+
     if(autoTilting!=-1){
       cout<<autoTilting<<"  "<<tiltEncoder.GetDistance()<<endl;
       if(abs(autoTilting-tiltEncoder.GetDistance())>tiltTol){
