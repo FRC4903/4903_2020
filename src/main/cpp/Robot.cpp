@@ -17,6 +17,8 @@
 #include <frc/trajectory/TrajectoryGenerator.h>
 #include <frc/Encoder.h>
 #include <array>
+#include "cameraserver/CameraServer.h"
+
 using namespace std;
 using namespace frc;
 using namespace rev;
@@ -43,7 +45,6 @@ class Robot : public TimedRobot {
   TalonSRX tilt;
   TalonSRX climbLeft;
   TalonSRX climbRight;
-
 
   //encoders
   Encoder tiltEncoder;
@@ -98,8 +99,7 @@ class Robot : public TimedRobot {
   double areaValues[5] = {};
   int moveAlong = 0; 
   int canMake = 0;
-
-
+  
   // Robot class intializing 
   Robot(): 
     intake(5),
@@ -130,6 +130,11 @@ class Robot : public TimedRobot {
     originalAngle = ahrs -> GetAngle();
     startX = pythonTable->GetEntry("startX").GetDouble(0);
     startY = pythonTable->GetEntry("startY").GetDouble(0);
+
+    // Set up a camera through USB
+    CameraServer::GetInstance()->StartAutomaticCapture();
+    cs::CvSink cvSink = CameraServer::GetInstance() -> GetVideo();
+    cs::CvSource outputStream = CameraServer::GetInstance() -> PutVideo("Intake", 640, 480);
   }
   
   // ================== Initialization periods ==================
