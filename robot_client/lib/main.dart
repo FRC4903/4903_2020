@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'RobotGame.dart';
 void main(){
   runApp(MyApp());
 
@@ -20,7 +22,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Robot Client',channel: Socket.connect('localhost', 8888)
+      home: MyHomePage(title: 'Robot Client',socket: Socket.connect('localhost', 8888)
       ),
 
     );
@@ -28,10 +30,10 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title,this.channel}) : super(key: key);
+  MyHomePage({Key key, this.title,this.socket}) : super(key: key);
 
   final String title;
-  final Future<Socket> channel;
+  final Future<Socket> socket;
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
@@ -40,8 +42,8 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   String startX;
   String startY;
-  String posX;
-  String posY;
+  String targetX;
+  String targetY;
   Point pos;
 
 
@@ -53,16 +55,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
-    widget.channel.then((socket) => {
-      socket.listen(dataHandler,
-          onError: errorHandler,
-          onDone:
-              (){
-        socket.destroy();
-        exit(0);
-        },
-          cancelOnError: false)
-    });
+
 
   }
 
@@ -76,12 +69,11 @@ class _MyHomePageState extends State<MyHomePage> {
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-
-        ],
-
+      body: FutureBuilder(
+        future: widget.socket,
+        builder: (context,snapshot){
+          return RobotGame(snapshot.data).widget;
+        },
       ),
 
       drawer: Drawer(
@@ -143,12 +135,41 @@ class _MyHomePageState extends State<MyHomePage> {
                   )
 
               ),
+              Padding(
+                  padding: EdgeInsets.fromLTRB(25, 20, 25, 0),
+                  child: TextField(
+                    decoration: InputDecoration(
+                        hintText: 'targetX',
+                        border: OutlineInputBorder()
+                    ),
+
+                    onChanged: (val){
+                      targetX=val;
+                    },
+                  )
+
+              ),
+              Padding(
+                  padding: EdgeInsets.fromLTRB(25, 20, 25, 0),
+                  child: TextField(
+                    decoration: InputDecoration(
+                        hintText: 'targetY',
+                        border: OutlineInputBorder()
+                    ),
+
+                    onChanged: (val){
+                      targetY=val;
+                    },
+                  )
+
+              ),
+
               IconButton(
                 icon: Icon(Icons.cloud_upload),
                 onPressed: (){
-                  widget.channel.then((socket) {
+                  widget.socket.then((socket) {
 
-                    socket.write(jsonEncode({'startX':startX,'startY':startY,'color':color}));
+                    socket.write(jsonEncode({'startX':startX,'startY':startY,'color':color,'targetX':targetX,'targetY':targetY}));
 
                   });
 
@@ -159,28 +180,13 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
       ),
-      drawerEnableOpenDragGesture: false,
 
 
     );
 
   }
-  void dataHandler(Uint8List data){
-    setState(() {
-      var jsonData=json.decode(String.fromCharCodes(data).trim());
-
-    });
 
 
-
-
-
-
-  }
-  void errorHandler(error, StackTrace trace){
-    print(error);
-
-  }
 
 
 
