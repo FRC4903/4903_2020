@@ -88,8 +88,9 @@ class Robot : public TimedRobot {
   double wantedConveyPos = 0;
   int autoTilting=-1;
   float trenchTilt;
-  float climbTilt;
-  float shootTilt;
+  float climbTilt=tiltMax;
+  float intakeTilt=22000;
+  double tiltTol=5000;
 
   // Robot class intializing 
   Robot(): 
@@ -198,21 +199,35 @@ class Robot : public TimedRobot {
     climbRight.Set(ControlMode::PercentOutput, wantedClimbR * -1);
 
     // setting tilt
-    float wantedTilt = (m_stick.GetRawButton(4) - m_stick.GetRawButton(2)) * 0.75;
+    Tilting();
+    
+    
+    
+    
+  }
+  void Tilting(){
+    float wantedTilt = (m_stick2.GetPOV()==0-m_stick2.GetPOV()==180) * 0.75;
+    if(wantedTilt!=0){
+      autoTilting=-1;
+    }
+    if(autoTilting!=-1){
+      cout<<autoTilting<<"  "<<tiltEncoder.GetDistance()<<endl;
+      if(abs(autoTilting-tiltEncoder.GetDistance())>tiltTol){
+        cout<<false<<endl;
+        if(autoTilting<tiltEncoder.GetDistance()){
+          wantedTilt=0.3;
+        }else{
+          wantedTilt=-0.3;
+        }
+      }else{
+        autoTilting=-1;
+        wantedTilt=0;
+      }
+    }
     if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt>0)&&!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt<0)){
       tilt.Set(ControlMode::PercentOutput, wantedTilt); 
     }
-    if(m_stick2.GetRawButtonPressed(1)){
-      autoTilting=trenchTilt;
-    }
-    else if(m_stick2.GetRawButtonPressed(2)){
-      autoTilting=climbTilt;
-    }
-    else if(m_stick2.GetRawButtonPressed(3)){
-      autoTilting=shootTilt;
-    }
 
-    cout << tiltEncoder.GetDistance() << endl;
   }
 
   // ================== Autonomous Period ==================
