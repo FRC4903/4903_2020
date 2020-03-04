@@ -19,7 +19,8 @@
     "chrono": "cpp",
     "limits": "cpp",
     "random": "cpp",
-    "cmath": "cpp"
+    "cmath": "cpp",
+    "cstdlib": "cpp"
   },
   "C_Cpp.default.configurationProvider": "vscode-wpilib"
 }
