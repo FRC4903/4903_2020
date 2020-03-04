@@ -405,9 +405,9 @@ class Robot : public TimedRobot {
       cout<<autoTilting<<"  "<<tiltEncoder.GetDistance()<<endl;
       if(abs(autoTilting-tiltEncoder.GetDistance())>tiltTol){
         if(autoTilting<tiltEncoder.GetDistance()){
-          wantedTilt=0.3;
+          wantedTilt=1;
         }else{
-          wantedTilt=-0.3;
+          wantedTilt=-1;
         }
       }else{
         autoTilting=-1;
@@ -415,6 +415,17 @@ class Robot : public TimedRobot {
       }
     }
     if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt>0)&&!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt<0)){
+      if(autoTilting!=1){
+        double diff=abs(tiltEncoder.GetDistance()-autoTilting);
+
+        if(diff>20000&&diff<60000){
+          wantedTilt=0.75*wantedTilt;
+
+        }else{
+          wantedTilt=0.35*wantedTilt;
+
+        }
+      }
       tilt.Set(ControlMode::PercentOutput, wantedTilt); 
     }
   }
