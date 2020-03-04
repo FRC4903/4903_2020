@@ -16,7 +16,8 @@ import 'package:flutter/widgets.dart';
 class RobotGame extends BaseGame with TapDetector,HasWidgetsOverlay{
   SpriteComponent robot;
   String widgetName="Pos";
-  Position target=Position(0,0);
+  List<Offset> path=List();
+  Offset target=Offset(0,0);
   final TextConfig config = TextConfig(fontSize: 14, fontFamily: 'Awesome Font',color: Color.fromRGBO(255, 255, 255, 1));
   RobotGame(Socket socket) {
     try{
@@ -52,7 +53,18 @@ class RobotGame extends BaseGame with TapDetector,HasWidgetsOverlay{
   @override
   void render(Canvas canvas) {
     robot.render(canvas);
-    config.render(canvas, "${target.x} ${target.y}", Position(200, 0));
+    config.render(canvas, "${target.dx.toInt()} ${target.dy.toInt()}", Position(200, 0));
+    Offset prev;
+    Paint paint=Paint();
+    paint.color=Color.fromRGBO(255, 0, 0, 1);
+    for (var p in path){
+      if(prev!=null){
+        canvas.drawLine(prev, p, paint);
+
+      }
+      prev=p;
+
+    }
   }
   void dataHandler(Uint8List data){
 
@@ -66,8 +78,8 @@ class RobotGame extends BaseGame with TapDetector,HasWidgetsOverlay{
 
   @override
   void onTapDown(TapDownDetails details) {
-    target.x=details.globalPosition.dx;
-    target.y=details.globalPosition.dy;
+    target=details.globalPosition;
+    path.add(target);
 
   }
 
