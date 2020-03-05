@@ -404,15 +404,18 @@ class Robot : public TimedRobot {
       }
     }
     if(!(tiltEncoder.GetDistance()<tiltMin&&wantedTilt>0)&&!(tiltEncoder.GetDistance()>tiltMax&&wantedTilt<0)){
-      if(autoTilting!=1){
+      if(autoTilting!=-1){
         double diff=abs(tiltEncoder.GetDistance()-autoTilting);
 
         if(diff>20000&&diff<60000){
           wantedTilt=0.75*wantedTilt;
 
-        }else{
-          wantedTilt=0.35*wantedTilt;
+        }else if(diff<20000){
+          wantedTilt=0.4*wantedTilt;
 
+        }
+        else{
+          wantedTilt=0.9*wantedTilt;
         }
       }
       tilt.Set(ControlMode::PercentOutput, wantedTilt); 
@@ -450,7 +453,7 @@ class Robot : public TimedRobot {
     double deviationAdjustment = 0.09;
     double shootThresholds[9] = {5500, 5300, 4500, 3050, 2950, 2800, 2500, 2500, 2200};
     double anglePositions[9] = {-4, -4, -2, 0, 0, 0, 1, 3, 4};
-    double elavationPositions[9] = {-14.5, -14.5, -15, -16, -16, -16, -16, -8, -8};
+    double elevationPositions[9] = {-14.5, -14.5, -15, -16, -16, -16, -16, -8, -8};
     int scaledDistance = (int) (targetArea / 0.5);   
     cout<< "Area is " << targetArea << " meaning m is " << scaledDistance <<  endl;
 
@@ -462,7 +465,7 @@ class Robot : public TimedRobot {
     } 
 
     // get the x and y values
-    double yOffsetWanted = (scaledDistance > 7 ? -8 : elavationPositions[scaledDistance]); ;
+    double yOffsetWanted = (scaledDistance > 7 ? -8 : elevationPositions[scaledDistance]); ;
     double xOffsetWanted = (scaledDistance > 7 ? 3 : anglePositions[scaledDistance]); 
     double targetOffsetAngle_Horizontal = frontLL->GetNumber("tx",0.0) - xOffsetWanted;
     double targetOffsetAngle_Vertical = frontLL->GetNumber("ty",0.0) - yOffsetWanted;
