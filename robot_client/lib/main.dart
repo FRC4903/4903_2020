@@ -17,12 +17,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return MaterialApp(
       title: 'Robot',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Robot Client',socket: Socket.connect('localhost', 8888)
+      home: MyHomePage(title: 'Robot Client',socket: Socket.connect('localhost', 5555)
       ),
 
     );
@@ -63,18 +64,15 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
 
+
     return Scaffold(
       appBar: AppBar(
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: FutureBuilder(
-        future: widget.socket,
-        builder: (context,snapshot){
-          return RobotGame(snapshot.data).widget;
-        },
-      ),
+      body: RobotGame(widget.socket).widget,
+
 
       drawer: Drawer(
         child: Center(
@@ -168,8 +166,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 icon: Icon(Icons.cloud_upload),
                 onPressed: (){
                   widget.socket.then((socket) {
+                    print("sending");
 
                     socket.write(jsonEncode({'startX':startX,'startY':startY,'color':color,'targetX':targetX,'targetY':targetY}));
+                    socket.flush();
 
                   });
 
@@ -183,6 +183,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
     );
+
+  }
+  void dataHandler(Uint8List data){
+
+    var jsonData=json.decode(String.fromCharCodes(data).trim());
 
   }
 

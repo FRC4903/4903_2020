@@ -14,28 +14,28 @@ import 'package:flame/text_config.dart';
 import 'package:flutter/widgets.dart';
 
 class RobotGame extends BaseGame with TapDetector,HasWidgetsOverlay{
+  static bool listened=false;
   SpriteComponent robot;
   String widgetName="Pos";
   List<Offset> path=List();
   Offset target=Offset(0,0);
   final TextConfig config = TextConfig(fontSize: 14, fontFamily: 'Awesome Font',color: Color.fromRGBO(255, 255, 255, 1));
-  RobotGame(Socket socket) {
-    try{
-      socket.listen(dataHandler,
+
+  RobotGame(Future<Socket> socket) {
+
+
+
+    socket.then((s){
+      if(listened) return;
+      else listened=true;
+      s.listen(dataHandler,
           onError: errorHandler,
-          onDone:
-              (){
-            socket.destroy();
-            exit(0);
-          },
+          onDone: (){
+        s.destroy();
+        exit(0);
+        },
           cancelOnError: false);
-
-    }catch (e){
-      print(e);
-
-
-
-    }
+    });
 
 
     robot=SpriteComponent.fromSprite(100, 100, Sprite('Robot.png'));
@@ -69,6 +69,7 @@ class RobotGame extends BaseGame with TapDetector,HasWidgetsOverlay{
   void dataHandler(Uint8List data){
 
     var jsonData=json.decode(String.fromCharCodes(data).trim());
+
     robot.x=jsonData['deltaX'];
     robot.y=jsonData['deltaY'];
   }
