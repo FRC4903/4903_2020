@@ -375,7 +375,7 @@ class Robot : public TimedRobot {
       waitconvey--;
     } else{ // don't move conveyer, check if you should start
       convey.Set(ControlMode::PercentOutput, 0);
-      if (bottomBall.GetVoltage() > 2){
+      if (bottomBall.GetVoltage() > 2 && tiltEncoder.GetDistance() > 0){
         wantedConveyPos = conveyEncoder.GetDistance() + moveConvey + deltaConvey*carryingBalls;
         carryingBalls++;
       }
