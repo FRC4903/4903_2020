@@ -233,7 +233,6 @@ class Robot : public TimedRobot {
   }
   
     
-
   // ================== Autonomous Period ==================
   int backMoveCount = 0;
   void AutonomousPeriodic() override{
@@ -243,9 +242,13 @@ class Robot : public TimedRobot {
     
     if ((gameTimer ->Get() > 10.5 || abs(conveyEncoder.GetDistance()) > abs(moveConvey * 6))){
       if (backMoveCount > 75){
-        if (backMoveCount > 100){
-          if (backMoveCount > 150){
-            moveRobot(0, 0, 1);
+        if (backMoveCount > 95){
+          if (backMoveCount > 295){
+            if (backMoveCount > 315){
+              moveRobot(0, 0, 1);
+            }else{
+              moveRobot(1, 0, 0.2f);
+            }
           }else{
             moveRobot(0, -1, -0.2f);
           }
@@ -472,9 +475,9 @@ class Robot : public TimedRobot {
 
     // adjusting shooting power and x offset wanted
     double deviationAdjustment = 0.09;
-    double shootThresholds[9] = {5550, 5350, 4500, 3050, 2950, 2800, 2500, 2500, 2200};
+    double shootThresholds[9] = {5650, 5550, 5000, 3050, 2950, 2800, 2500, 2500, 2200};
     double anglePositions[9] = {-4, -4, -2, 0, 0, 0, 1, 3, 4};
-    double elevationPositions[9] = {-15, -15, -15, -16, -16, -16, -16, -8, -8};
+    double elevationPositions[9] = {-15.5, -15.5, -15, -16, -16, -16, -16, -8, -8};
     int scaledDistance = (int) (targetArea / 0.5);   
     cout<< "Area is " << targetArea << " meaning m is " << scaledDistance <<  endl;
 
@@ -486,13 +489,13 @@ class Robot : public TimedRobot {
     } 
 
     // get the x and y values
-    double yOffsetWanted = (scaledDistance > 7 ? -8 : elevationPositions[scaledDistance]); ;
+    double yOffsetWanted = (scaledDistance > 7 ? -8 : elevationPositions[scaledDistance]); 
     double xOffsetWanted = (scaledDistance > 7 ? 3 : anglePositions[scaledDistance]); 
     double targetOffsetAngle_Horizontal = frontLL->GetNumber("tx",0.0) - xOffsetWanted;
     double targetOffsetAngle_Vertical = frontLL->GetNumber("ty",0.0) - yOffsetWanted;
 
     // error allowed
-    double angleAllowedY = 1; 
+    double angleAllowedY = (scaledDistance < 2 ? 0.5 : 1); 
     double angleAllowedX = (scaledDistance < 2 ? 2 : 1.5);
 
     // averaging x and y on a 3 step loop to throw away triangles
