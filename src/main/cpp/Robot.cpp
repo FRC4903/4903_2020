@@ -90,7 +90,7 @@ class Robot : public TimedRobot {
   double const deltaConvey = -50;
   double wantedConveyPos = 0;
   int autoTilting=-1;
-  float trenchTilt = 30000;
+  float trenchTilt = 50000;
   float intakeTilt = 22000;
   double tiltTol = 3000;
   int tiltPositions[3] = {trenchTilt, intakeTilt, 0};
@@ -110,7 +110,7 @@ class Robot : public TimedRobot {
     climbRight(11),
     tiltEncoder(8, 9),
     conveyEncoder(6, 7),
-    bottomBall(0)
+    bottomBall(1)
   {
     // set up navx
     try {
@@ -202,7 +202,7 @@ class Robot : public TimedRobot {
     
     // setting conveyer override
     double wantConvey = m_stick2.GetRawAxis(1) * -0.4; 
-    if (abs(wantConvey) > 0.2){ 
+    if (abs(wantConvey) > 0.3){ 
       convey.Set(ControlMode::PercentOutput, wantConvey);
     }
 
@@ -218,7 +218,7 @@ class Robot : public TimedRobot {
 
     // setting tilt 
     for (int a = 0; a < 3; a++){ // co-pilot buttons for preset positions
-      if (m_stick2.GetRawButton(a + 2)){
+      if (m_stick2.GetRawButtonPressed(a + 2)){
         // set tilt variable to tiltPositions[a]
         if (autoTilting == tiltPositions[a]){
           autoTilting = -1;
@@ -240,14 +240,35 @@ class Robot : public TimedRobot {
     // updatePosition();
     double dist = pow(pow(ahrs ->GetDisplacementX(), 2) + pow(ahrs ->GetDisplacementY(), 2) + pow(ahrs ->GetDisplacementZ(), 2), 0.5);
     cout<< "Distance of " << dist << "m" << endl;
+    
     if ((gameTimer ->Get() > 10.5 || abs(conveyEncoder.GetDistance()) > abs(moveConvey * 6))){
       if (backMoveCount > 75){
-        moveRobot(0, 0, 1);
+        if (backMoveCount > 100){
+          if (backMoveCount > 150){
+            moveRobot(0, 0, 1);
+          }else{
+            moveRobot(0, -1, -0.2f);
+          }
+        }else{
+          moveRobot(-1, 0, 0.2f);
+        }
       }else{
         moveRobot(0, -1, -0.2f);
-        backMoveCount++;
       }
+      
+      /*
+      if ((gameTimer ->Get() > 10.5 || abs(conveyEncoder.GetDistance()) > abs(moveConvey * 6))){
+      if (backMoveCount > 25){
+        if (backMoveCount > 175){
+          moveRobot(0, 0, 1);
+        }else{
+          moveRobot(0, 1, 0.2f);
+        }
+      }else{
+        moveRobot(-1, 0, -0.2f);
+      }*/
 
+      backMoveCount++;
       autoTilting = intakeTilt;
       Tilting();
       autoConvey();
@@ -375,7 +396,7 @@ class Robot : public TimedRobot {
       waitconvey--;
     } else{ // don't move conveyer, check if you should start
       convey.Set(ControlMode::PercentOutput, 0);
-      if (bottomBall.GetVoltage() > 2){
+      if (bottomBall.GetVoltage() > 2 && tiltEncoder.GetDistance() > -1000){
         wantedConveyPos = conveyEncoder.GetDistance() + moveConvey + deltaConvey*carryingBalls;
         carryingBalls++;
       }
@@ -408,7 +429,7 @@ class Robot : public TimedRobot {
         double diff=abs(tiltEncoder.GetDistance()-autoTilting);
 
         if(diff>20000&&diff<60000){
-          wantedTilt=0.75*wantedTilt;
+          wantedTilt=0.8*wantedTilt;
 
         }else if(diff<20000){
           wantedTilt=0.4*wantedTilt;
@@ -430,7 +451,7 @@ class Robot : public TimedRobot {
 
     // get the limelight area
     double targetArea = frontLL->GetNumber("ta", 0.0);
-
+    cout<<targetArea<<endl;
     // averaging target area on the last 5, constantly, for peak accuracy
     /*
     for (int i = 0; i < size(areaValues) - 1; i++){
@@ -451,9 +472,9 @@ class Robot : public TimedRobot {
 
     // adjusting shooting power and x offset wanted
     double deviationAdjustment = 0.09;
-    double shootThresholds[9] = {5500, 5300, 4500, 3050, 2950, 2800, 2500, 2500, 2200};
+    double shootThresholds[9] = {5550, 5350, 4500, 3050, 2950, 2800, 2500, 2500, 2200};
     double anglePositions[9] = {-4, -4, -2, 0, 0, 0, 1, 3, 4};
-    double elevationPositions[9] = {-14.5, -14.5, -15, -16, -16, -16, -16, -8, -8};
+    double elevationPositions[9] = {-15, -15, -15, -16, -16, -16, -16, -8, -8};
     int scaledDistance = (int) (targetArea / 0.5);   
     cout<< "Area is " << targetArea << " meaning m is " << scaledDistance <<  endl;
 
