@@ -22,6 +22,7 @@
 #include <frc/trajectory/TrajectoryUtil.h>
 #include <wpi/Path.h>
 #include <wpi/SmallString.h>
+#include "frc/Preferences.h"
 
 using namespace std;
 using namespace frc;
@@ -71,6 +72,7 @@ class Robot : public TimedRobot {
   shared_ptr<NetworkTable> frontLL = nt::NetworkTableInstance::GetDefault().GetTable("limelight-front");
   shared_ptr<NetworkTable> backLL = nt::NetworkTableInstance::GetDefault().GetTable("limelight-back");
 
+  Preferences* prefs;
   // gyro
   AHRS *ahrs;
 
@@ -115,7 +117,9 @@ class Robot : public TimedRobot {
     tiltEncoder(8, 9),
     conveyEncoder(6, 7),
     bottomBall(1)
+
   {
+    prefs = Preferences::GetInstance();
     // set up navx
     try {
         /* Communicate w/navX-MXP via the MXP SPI Bus.                                       */
