@@ -241,22 +241,15 @@ class Robot : public TimedRobot {
     cout<< "Distance of " << dist << "m" << endl;
     
     if ((gameTimer ->Get() > 10.5 || abs(conveyEncoder.GetDistance()) > abs(moveConvey * 6))){
-      if (backMoveCount > 75){
-        if (backMoveCount > 95){
-          if (backMoveCount > 295){
-            if (backMoveCount > 315){
-              moveRobot(0, 0, 1);
-            }else{
-              moveRobot(1, 0, 0.2f);
-            }
-          }else{
-            moveRobot(0, -1, -0.2f);
-          }
-        }else{
-          moveRobot(-1, 0, 0.2f);
-        }
-      }else{
+      if (backMoveCount < 30){
+        moveRobot(1, 0, 0.2f);
+        
+       
+      }else if (backMoveCount < 140){
         moveRobot(0, -1, -0.2f);
+      }
+      else{
+        moveRobot(0, 0, 1);
       }
       
       /*
@@ -315,6 +308,7 @@ class Robot : public TimedRobot {
     isShooting = false;
     climbMode = false;
     conveyEncoder.Reset();
+    wantedConveyPos = 0;       
   } 
 
   void moveRobot(float j_x, float j_y, float mod){ // movement functions
@@ -521,7 +515,7 @@ class Robot : public TimedRobot {
     if (targetArea == 0 && canMake < 5) { 
       // no target and not moving onto one
       canMake = 0;
-      moveRobot(1, 0, -0.2);
+      //moveRobot(1, 0, -0.2);
       cout << "Looking for target" << endl;
 
     } else if (abs(targetOffsetAngle_Horizontal) < angleAllowedX || canMake > 5){
