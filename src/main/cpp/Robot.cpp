@@ -18,6 +18,10 @@
 #include <frc/Encoder.h>
 #include <array>
 #include "cameraserver/CameraServer.h"
+#include <frc/Filesystem.h>
+#include <frc/trajectory/TrajectoryUtil.h>
+#include <wpi/Path.h>
+#include <wpi/SmallString.h>
 
 using namespace std;
 using namespace frc;
@@ -145,6 +149,16 @@ class Robot : public TimedRobot {
   
   void AutonomousInit() override{
     backMoveCount = 0;
+    /*
+    wpi::SmallString<64> deployDirectory;
+    frc::filesystem::GetDeployDirectory(deployDirectory);
+    wpi::sys::path::append(deployDirectory, "output");
+    wpi::sys::path::append(deployDirectory, "Mid-Trench.wpilib.json");
+
+    frc::Trajectory trajectory = frc::TrajectoryUtil::FromPathweaverJson(deployDirectory);
+    cout << trajectory.TotalTime() << endl;
+    */
+
     gameTimer -> Start();
     gameTimer -> Reset();
     initialize();
@@ -166,7 +180,7 @@ class Robot : public TimedRobot {
 
     }else{ 
       // manual shooting from co pilot
-      double wantedShoot = m_stick2.GetRawAxis(3) * -0.5;
+      double wantedShoot = m_stick2.GetRawAxis(3) * -0.75;
       shootLeft.Set(wantedShoot *-1);
       shootRight.Set(wantedShoot);
 
@@ -236,7 +250,6 @@ class Robot : public TimedRobot {
   // ================== Autonomous Period ==================
   int backMoveCount = 0;
   void AutonomousPeriodic() override{
-    // updatePosition();
     double dist = pow(pow(ahrs ->GetDisplacementX(), 2) + pow(ahrs ->GetDisplacementY(), 2) + pow(ahrs ->GetDisplacementZ(), 2), 0.5);
     cout<< "Distance of " << dist << "m" << endl;
     
@@ -261,6 +274,7 @@ class Robot : public TimedRobot {
       autoShoot();
       intake.Set(ControlMode::PercentOutput, -0.3);
     }
+    updatePosition();
   }
 
   // ================== Functions ==================
