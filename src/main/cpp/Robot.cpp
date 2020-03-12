@@ -241,29 +241,18 @@ class Robot : public TimedRobot {
     cout<< "Distance of " << dist << "m" << endl;
     
     if ((gameTimer ->Get() > 10.5 || abs(conveyEncoder.GetDistance()) > abs(moveConvey * 6))){
-      if (backMoveCount < 30){
-        moveRobot(1, 0, 0.2f);
-        
-       
-      }else if (backMoveCount < 140){
+      if (backMoveCount < 15){
+        moveRobot(-1, 0, 0.2f);
+      }else if (backMoveCount < 175){
         moveRobot(0, -1, -0.2f);
-      }
-      else{
+      }else if (backMoveCount < 190){
+        moveRobot(1, 0, 0.2f);
+      }else if (backMoveCount < 350){
+        moveRobot(0, -1, -0.2f);
+      }else{
         moveRobot(0, 0, 1);
       }
       
-      /*
-      if ((gameTimer ->Get() > 10.5 || abs(conveyEncoder.GetDistance()) > abs(moveConvey * 6))){
-      if (backMoveCount > 25){
-        if (backMoveCount > 175){
-          moveRobot(0, 0, 1);
-        }else{
-          moveRobot(0, 1, 0.2f);
-        }
-      }else{
-        moveRobot(-1, 0, -0.2f);
-      }*/
-
       backMoveCount++;
       autoTilting = intakeTilt;
       Tilting();
@@ -321,8 +310,8 @@ class Robot : public TimedRobot {
     double speedR = max(-1.0f, min(1.0f, -j_x - j_y)) * mod;
 
     // if we are not turning, then use custom coast. Else, use brake mode.
-    speedL = (oldSL != oldSR && j_y == 0 )? speedL : oldSL * (1 - 1/accelLerp) + (1/accelLerp) * speedL; 
-    speedR = (oldSL != oldSR && j_y == 0 ) ? speedR : oldSR * (1 - 1/accelLerp) + (1/accelLerp) * speedR;
+    speedL = (oldSL != oldSR)? speedL : oldSL * (1 - 1/accelLerp) + (1/accelLerp) * speedL; 
+    speedR = (oldSL != oldSR) ? speedR : oldSR * (1 - 1/accelLerp) + (1/accelLerp) * speedR;
 
     // setting neo motors to the set speed
     frontLeft.Set(speedL*-1);   
@@ -393,6 +382,7 @@ class Robot : public TimedRobot {
       waitconvey--;
     } else{ // don't move conveyer, check if you should start
       convey.Set(ControlMode::PercentOutput, 0);
+      wantedConveyPos = -1;
       if (bottomBall.GetVoltage() > 2 && tiltEncoder.GetDistance() > -1000){
         wantedConveyPos = conveyEncoder.GetDistance() + moveConvey + deltaConvey*carryingBalls;
         carryingBalls++;
@@ -449,29 +439,12 @@ class Robot : public TimedRobot {
     // get the limelight area
     double targetArea = frontLL->GetNumber("ta", 0.0);
     cout<<targetArea<<endl;
-    // averaging target area on the last 5, constantly, for peak accuracy
-    /*
-    for (int i = 0; i < size(areaValues) - 1; i++){
-      areaValues[i] = areaValues[i+1];
-    }
-
-    areaValues[size(areaValues) - 1] = targetArea;
-    targetArea = 0;
-    int accounted = 0;
-    for (int n : areaValues){
-      if (n > 0.0001){
-        targetArea += n;
-        accounted++;
-      }
-    }
-    targetArea /= accounted;
-    */
 
     // adjusting shooting power and x offset wanted
     double deviationAdjustment = 0.09;
-    double shootThresholds[9] = {5650, 5550, 5000, 3050, 2950, 2800, 2500, 2500, 2200};
+    double shootThresholds[9] = {5675, 5550, 5000, 3050, 2950, 2800, 2500, 2500, 2200};
     double anglePositions[9] = {-4, -4, -2, 0, 0, 0, 1, 3, 4};
-    double elevationPositions[9] = {-15.5, -15.5, -15, -16, -16, -16, -16, -8, -8};
+    double elevationPositions[9] = {-17, -16, -15, -16, -16, -16, -16, -8, -8};
     int scaledDistance = (int) (targetArea / 0.5);   
     cout<< "Area is " << targetArea << " meaning m is " << scaledDistance <<  endl;
 
@@ -489,8 +462,8 @@ class Robot : public TimedRobot {
     double targetOffsetAngle_Vertical = frontLL->GetNumber("ty",0.0) - yOffsetWanted;
 
     // error allowed
-    double angleAllowedY = (scaledDistance < 2 ? 0.5 : 1); 
-    double angleAllowedX = (scaledDistance < 2 ? 2 : 1.5);
+    double angleAllowedY = 0.25; //(scaledDistance < 2 ? 0.5 : 1); 
+    double angleAllowedX = (scaledDistance < 2 ? 2.5 : 1.5);
 
     // averaging x and y on a 3 step loop to throw away triangles
     if (targetArea > 0.0001){
